@@ -5,6 +5,7 @@ import { ContextType, getDeclarationContextType } from "../utils/function-contex
 import { wrapInToStringForConcat } from "../utils/lua-ast";
 import { isStringType } from "../utils/typescript/types";
 import { transformArguments, transformContextualCallExpression } from "./call";
+import { transformOrderedExpressions } from "./expression-list";
 
 // TODO: Source positions
 function getRawLiteral(node: ts.LiteralLikeNode): string {
@@ -24,8 +25,13 @@ export const transformTemplateExpression: FunctionVisitor<ts.TemplateExpression>
         parts.push(lua.createStringLiteral(head, node.head));
     }
 
-    for (const span of node.templateSpans) {
-        const expression = context.transformExpression(span.expression);
+    const transformedExpressions = transformOrderedExpressions(
+        context,
+        node.templateSpans.map(s => s.expression)
+    );
+    for (let i = 0; i < node.templateSpans.length; ++i) {
+        const span = node.templateSpans[i];
+        const expression = transformedExpressions[i];
         const spanType = context.checker.getTypeAtLocation(span.expression);
         if (isStringType(context, spanType)) {
             parts.push(expression);

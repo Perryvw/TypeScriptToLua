@@ -7,11 +7,10 @@ function ____exports.__main(self)
         local strsArray = {{\\"a1\\", \\"a2\\"}, {\\"b1\\", \\"b2\\"}, {\\"c1\\", \\"c2\\"}}
         local i = 0
         return function()
-            local strs = strsArray[(function()
-                local ____tmp = i
-                i = ____tmp + 1
-                return ____tmp
-            end)() + 1]
+            local ____strsArray_1 = strsArray
+            local ____i_0 = i
+            i = ____i_0 + 1
+            local strs = ____strsArray_1[____i_0 + 1]
             if strs then
                 return table.unpack(strs)
             end
@@ -32,11 +31,10 @@ function ____exports.__main(self)
         local strsArray = {{\\"a1\\", \\"a2\\"}, {\\"b1\\", \\"b2\\"}, {\\"c1\\", \\"c2\\"}}
         local i = 0
         return function()
-            local strs = strsArray[(function()
-                local ____tmp = i
-                i = ____tmp + 1
-                return ____tmp
-            end)() + 1]
+            local ____strsArray_1 = strsArray
+            local ____i_0 = i
+            i = ____i_0 + 1
+            local strs = ____strsArray_1[____i_0 + 1]
             if strs then
                 return table.unpack(strs)
             end

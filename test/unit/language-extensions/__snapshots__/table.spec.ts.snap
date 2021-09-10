@@ -47,87 +47,59 @@ return ____exports"
 exports[`LuaTable extension interface LuaTable in strict mode does not accept key type that could be nil ("unknown"): diagnostics 1`] = `"main.ts(1,38): error TS2344: Type 'unknown' does not satisfy the constraint 'AnyNotNil'."`;
 
 exports[`LuaTableDelete extension LuaTableDelete invalid use as expression ("const foo = [tableDelete({}, \\"foo\\")];"): code 1`] = `
-"foo = {
-    (function()
-        ({}).foo = nil
-        return nil
-    end)()
-}"
+"({}).foo = nil
+foo = {nil}"
 `;
 
 exports[`LuaTableDelete extension LuaTableDelete invalid use as expression ("const foo = [tableDelete({}, \\"foo\\")];"): diagnostics 1`] = `"main.ts(3,26): error TSTL: Table delete extension can only be called as a stand-alone statement. It cannot be used as an expression in another statement."`;
 
 exports[`LuaTableDelete extension LuaTableDelete invalid use as expression ("const foo = \`\${tableDelete({}, \\"foo\\")}\`;"): code 1`] = `
-"foo = tostring(
-    (function()
-        ({}).foo = nil
-        return nil
-    end)()
-)"
+"({}).foo = nil
+foo = tostring(nil)"
 `;
 
 exports[`LuaTableDelete extension LuaTableDelete invalid use as expression ("const foo = \`\${tableDelete({}, \\"foo\\")}\`;"): diagnostics 1`] = `"main.ts(3,28): error TSTL: Table delete extension can only be called as a stand-alone statement. It cannot be used as an expression in another statement."`;
 
 exports[`LuaTableDelete extension LuaTableDelete invalid use as expression ("const foo = tableDelete({}, \\"foo\\");"): code 1`] = `
-"foo = (function()
-    ({}).foo = nil
-    return nil
-end)()"
+"({}).foo = nil
+foo = nil"
 `;
 
 exports[`LuaTableDelete extension LuaTableDelete invalid use as expression ("const foo = tableDelete({}, \\"foo\\");"): diagnostics 1`] = `"main.ts(3,25): error TSTL: Table delete extension can only be called as a stand-alone statement. It cannot be used as an expression in another statement."`;
 
 exports[`LuaTableDelete extension LuaTableDelete invalid use as expression ("declare function foo(arg: any): void; foo(tableDelete({}, \\"foo\\"));"): code 1`] = `
-"foo(
-    _G,
-    (function()
-        ({}).foo = nil
-        return nil
-    end)()
-)"
+"local ____foo_0 = foo;
+({}).foo = nil
+____foo_0(_G, nil)"
 `;
 
 exports[`LuaTableDelete extension LuaTableDelete invalid use as expression ("declare function foo(arg: any): void; foo(tableDelete({}, \\"foo\\"));"): diagnostics 1`] = `"main.ts(3,55): error TSTL: Table delete extension can only be called as a stand-alone statement. It cannot be used as an expression in another statement."`;
 
 exports[`LuaTableGet & LuaTableSet extensions LuaTableSet invalid use as expression ("const foo = [setTable({}, \\"foo\\", 3)];"): code 1`] = `
-"foo = {
-    (function()
-        ({}).foo = 3
-        return nil
-    end)()
-}"
+"({}).foo = 3
+foo = {nil}"
 `;
 
 exports[`LuaTableGet & LuaTableSet extensions LuaTableSet invalid use as expression ("const foo = [setTable({}, \\"foo\\", 3)];"): diagnostics 1`] = `"main.ts(3,26): error TSTL: Table set extension can only be called as a stand-alone statement. It cannot be used as an expression in another statement."`;
 
 exports[`LuaTableGet & LuaTableSet extensions LuaTableSet invalid use as expression ("const foo = \`\${setTable({}, \\"foo\\", 3)}\`;"): code 1`] = `
-"foo = tostring(
-    (function()
-        ({}).foo = 3
-        return nil
-    end)()
-)"
+"({}).foo = 3
+foo = tostring(nil)"
 `;
 
 exports[`LuaTableGet & LuaTableSet extensions LuaTableSet invalid use as expression ("const foo = \`\${setTable({}, \\"foo\\", 3)}\`;"): diagnostics 1`] = `"main.ts(3,28): error TSTL: Table set extension can only be called as a stand-alone statement. It cannot be used as an expression in another statement."`;
 
 exports[`LuaTableGet & LuaTableSet extensions LuaTableSet invalid use as expression ("const foo = setTable({}, \\"foo\\", 3);"): code 1`] = `
-"foo = (function()
-    ({}).foo = 3
-    return nil
-end)()"
+"({}).foo = 3
+foo = nil"
 `;
 
 exports[`LuaTableGet & LuaTableSet extensions LuaTableSet invalid use as expression ("const foo = setTable({}, \\"foo\\", 3);"): diagnostics 1`] = `"main.ts(3,25): error TSTL: Table set extension can only be called as a stand-alone statement. It cannot be used as an expression in another statement."`;
 
 exports[`LuaTableGet & LuaTableSet extensions LuaTableSet invalid use as expression ("declare function foo(arg: any): void; foo(setTable({}, \\"foo\\", 3));"): code 1`] = `
-"foo(
-    _G,
-    (function()
-        ({}).foo = 3
-        return nil
-    end)()
-)"
+"local ____foo_0 = foo;
+({}).foo = 3
+____foo_0(_G, nil)"
 `;
 
 exports[`LuaTableGet & LuaTableSet extensions LuaTableSet invalid use as expression ("declare function foo(arg: any): void; foo(setTable({}, \\"foo\\", 3));"): diagnostics 1`] = `"main.ts(3,55): error TSTL: Table set extension can only be called as a stand-alone statement. It cannot be used as an expression in another statement."`;

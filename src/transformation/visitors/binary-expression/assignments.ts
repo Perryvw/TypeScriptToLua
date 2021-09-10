@@ -7,20 +7,39 @@ import { createExportedIdentifier, getDependenciesOfSymbol, isSymbolExported } f
 import { createUnpackCall, wrapInTable } from "../../utils/lua-ast";
 import { LuaLibFeature, transformLuaLibFunction } from "../../utils/lualib";
 import { isArrayType, isDestructuringAssignment } from "../../utils/typescript";
-import { transformElementAccessArgument } from "../access";
 import { isArrayLength, transformDestructuringAssignment } from "./destructuring-assignments";
 import { isMultiReturnCall } from "../language-extensions/multi";
-import { popScope, pushScope, ScopeType } from "../../utils/scope";
-import {
-    ImmediatelyInvokedFunctionParameters,
-    transformToImmediatelyInvokedFunctionExpression,
-} from "../../utils/transform";
 import { notAllowedOptionalAssignment } from "../../utils/diagnostics";
+import { transformElementAccessArgument } from "../access";
+import { transformOrderedExpressions } from "../expression-list";
 
 export function transformAssignmentLeftHandSideExpression(
     context: TransformationContext,
-    node: ts.Expression
+    node: ts.Expression,
+    rightHasPrecedingStatements?: boolean
 ): lua.AssignmentLeftHandSideExpression {
+    // Cache index expression in a temp so it can be evaluated before right's preceding statements
+    if (
+        rightHasPrecedingStatements &&
+        ts.isElementAccessExpression(node) &&
+        !ts.isLiteralExpression(node.argumentExpression)
+    ) {
+        let table = context.transformExpression(node.expression);
+
+        // If table is complex, it could reference things from the index expression and needs to be cached as well
+        if (!ts.isIdentifier(node.expression)) {
+            const tableTemp = context.createTempForNode(node.expression);
+            context.addPrecedingStatements([lua.createVariableDeclarationStatement(tableTemp, table, node.expression)]);
+            table = lua.cloneIdentifier(tableTemp);
+        }
+
+        const indexNode = node.argumentExpression;
+        const indexTemp = context.createTempForNode(indexNode);
+        const index = transformElementAccessArgument(context, node);
+        context.addPrecedingStatements([lua.createVariableDeclarationStatement(indexTemp, index, indexNode)]);
+        return lua.createTableIndexExpression(table, lua.cloneIdentifier(indexTemp), node);
+    }
+
     const symbol = context.checker.getSymbolAtLocation(node);
     const left = context.transformExpression(node);
 
@@ -34,6 +53,7 @@ export function transformAssignment(
     // TODO: Change type to ts.LeftHandSideExpression?
     lhs: ts.Expression,
     right: lua.Expression,
+    rightHasPrecedingStatements?: boolean,
     parent?: ts.Expression
 ): lua.Statement[] {
     if (ts.isOptionalChain(lhs)) {
@@ -61,7 +81,7 @@ export function transformAssignment(
 
     const dependentSymbols = symbol ? getDependenciesOfSymbol(context, symbol) : [];
 
-    const left = transformAssignmentLeftHandSideExpression(context, lhs);
+    const left = transformAssignmentLeftHandSideExpression(context, lhs, rightHasPrecedingStatements);
 
     const rootAssignment = lua.createAssignmentStatement(left, right, lhs.parent);
 
@@ -75,20 +95,36 @@ export function transformAssignment(
     ];
 }
 
+export function transformAssignmentWithRightPrecedingStatements(
+    context: TransformationContext,
+    lhs: ts.Expression,
+    right: lua.Expression,
+    rightPrecedingStatements: lua.Statement[],
+    parent?: ts.Expression
+): lua.Statement[] {
+    return [
+        ...rightPrecedingStatements,
+        ...transformAssignment(context, lhs, right, rightPrecedingStatements.length > 0, parent),
+    ];
+}
+
 function transformDestructuredAssignmentExpression(
     context: TransformationContext,
     expression: ts.DestructuringAssignment
-): ImmediatelyInvokedFunctionParameters {
-    const rootIdentifier = lua.createAnonymousIdentifier(expression.left);
+) {
+    const rootIdentifier = context.createTempForNode(expression.right);
 
+    context.pushPrecedingStatements();
     let right = context.transformExpression(expression.right);
+    const rootPrecedingStatements = context.popPrecedingStatements();
+    context.addPrecedingStatements(rootPrecedingStatements);
     if (isMultiReturnCall(context, expression.right)) {
         right = wrapInTable(right);
     }
 
     const statements = [
         lua.createVariableDeclarationStatement(rootIdentifier, right),
-        ...transformDestructuringAssignment(context, expression, rootIdentifier),
+        ...transformDestructuringAssignment(context, expression, rootIdentifier, rootPrecedingStatements.length > 0),
     ];
 
     return { statements, result: rootIdentifier };
@@ -115,56 +151,36 @@ export function transformAssignmentExpression(
     }
 
     if (isDestructuringAssignment(expression)) {
-        return transformToImmediatelyInvokedFunctionExpression(
-            context,
-            () => transformDestructuredAssignmentExpression(context, expression),
-            expression
-        );
+        const { statements, result } = transformDestructuredAssignmentExpression(context, expression);
+        context.addPrecedingStatements(statements);
+        return result;
     }
 
     if (ts.isPropertyAccessExpression(expression.left) || ts.isElementAccessExpression(expression.left)) {
-        // Left is property/element access: cache result while maintaining order of evaluation
-        // (function(o, i, v) o[i] = v; return v end)(${objExpression}, ${indexExpression}, ${right})
-        const objParameter = lua.createIdentifier("o");
-        const indexParameter = lua.createIdentifier("i");
-        const valueParameter = lua.createIdentifier("v");
-        const indexStatement = lua.createTableIndexExpression(objParameter, indexParameter);
-        const statements: lua.Statement[] = [
-            lua.createAssignmentStatement(indexStatement, valueParameter),
-            lua.createReturnStatement([valueParameter]),
-        ];
-        const iife = lua.createFunctionExpression(lua.createBlock(statements), [
-            objParameter,
-            indexParameter,
-            valueParameter,
-        ]);
-        pushScope(context, ScopeType.Function);
-        const objExpression = context.transformExpression(expression.left.expression);
-        let indexExpression: lua.Expression;
-        if (ts.isPropertyAccessExpression(expression.left)) {
-            // Property access
-            indexExpression = lua.createStringLiteral(expression.left.name.text);
-        } else {
-            // Element access
-            indexExpression = transformElementAccessArgument(context, expression.left);
-        }
+        const tempVar = context.createTempForNode(expression.right);
+        context.pushPrecedingStatements();
+        const right = context.transformExpression(expression.right);
+        const precedingStatements = context.popPrecedingStatements();
 
-        const args = [objExpression, indexExpression, context.transformExpression(expression.right)];
-        popScope(context);
-        return lua.createCallExpression(iife, args, expression);
-    } else {
-        return transformToImmediatelyInvokedFunctionExpression(
+        const left = transformAssignmentLeftHandSideExpression(
             context,
-            () => {
-                // Simple assignment
-                // (function() ${left} = ${right}; return ${left} end)()
-                const left = context.transformExpression(expression.left);
-                const right = context.transformExpression(expression.right);
-                const statements = transformAssignment(context, expression.left, right);
-                return { statements, result: left };
-            },
-            expression
+            expression.left,
+            precedingStatements.length > 0
         );
+
+        context.addPrecedingStatements([
+            ...precedingStatements,
+            lua.createVariableDeclarationStatement(tempVar, right, expression.right),
+            lua.createAssignmentStatement(left, lua.cloneIdentifier(tempVar), expression.left),
+        ]);
+        return lua.cloneIdentifier(tempVar);
+    } else {
+        // Simple assignment
+        // ${left} = ${right}; return ${left}
+        const left = context.transformExpression(expression.left);
+        const right = context.transformExpression(expression.right);
+        context.addPrecedingStatements(transformAssignment(context, expression.left, right));
+        return left;
     }
 }
 
@@ -179,7 +195,7 @@ const canBeTransformedToLuaAssignmentStatement = (
         }
 
         if (ts.isPropertyAccessExpression(element) || ts.isElementAccessExpression(element)) {
-            return true;
+            return false;
         }
 
         if (ts.isIdentifier(element)) {
@@ -203,12 +219,15 @@ export function transformAssignmentStatement(
     if (isDestructuringAssignment(expression)) {
         if (canBeTransformedToLuaAssignmentStatement(context, expression)) {
             const rightType = context.checker.getTypeAtLocation(expression.right);
-            let right: lua.Expression | lua.Expression[] = context.transformExpression(expression.right);
+            let right: lua.Expression | lua.Expression[];
 
             if (ts.isArrayLiteralExpression(expression.right)) {
-                right = expression.right.elements.map(e => context.transformExpression(e));
-            } else if (!isMultiReturnCall(context, expression.right) && isArrayType(context, rightType)) {
-                right = createUnpackCall(context, right, expression.right);
+                right = transformOrderedExpressions(context, expression.right.elements);
+            } else {
+                right = context.transformExpression(expression.right);
+                if (!isMultiReturnCall(context, expression.right) && isArrayType(context, rightType)) {
+                    right = createUnpackCall(context, right, expression.right);
+                }
             }
 
             const left = expression.left.elements.map(e => transformAssignmentLeftHandSideExpression(context, e));
@@ -216,17 +235,28 @@ export function transformAssignmentStatement(
             return [lua.createAssignmentStatement(left, right, expression)];
         }
 
+        context.pushPrecedingStatements();
         let right = context.transformExpression(expression.right);
+        const rootPrecedingStatements = context.popPrecedingStatements();
+        context.addPrecedingStatements(rootPrecedingStatements);
         if (isMultiReturnCall(context, expression.right)) {
             right = wrapInTable(right);
         }
 
-        const rootIdentifier = lua.createAnonymousIdentifier(expression.left);
+        const rootIdentifier = context.createTempForNode(expression.left);
         return [
             lua.createVariableDeclarationStatement(rootIdentifier, right),
-            ...transformDestructuringAssignment(context, expression, rootIdentifier),
+            ...transformDestructuringAssignment(
+                context,
+                expression,
+                rootIdentifier,
+                rootPrecedingStatements.length > 0
+            ),
         ];
     } else {
-        return transformAssignment(context, expression.left, context.transformExpression(expression.right));
+        context.pushPrecedingStatements();
+        const right = context.transformExpression(expression.right);
+        const precedingStatements = context.popPrecedingStatements();
+        return transformAssignmentWithRightPrecedingStatements(context, expression.left, right, precedingStatements);
     }
 }

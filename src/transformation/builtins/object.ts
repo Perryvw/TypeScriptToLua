@@ -3,6 +3,7 @@ import { TransformationContext } from "../context";
 import { unsupportedProperty } from "../utils/diagnostics";
 import { LuaLibFeature, transformLuaLibFunction } from "../utils/lualib";
 import { PropertyCallExpression, transformArguments } from "../visitors/call";
+import { wrapInReadonlyTable } from "../utils/lua-ast";
 
 export function transformObjectConstructorCall(
     context: TransformationContext,
@@ -14,7 +15,7 @@ export function transformObjectConstructorCall(
 
     switch (methodName) {
         case "assign":
-            return transformLuaLibFunction(context, LuaLibFeature.ObjectAssign, expression, ...args);
+            return transformLuaLibFunction(context, LuaLibFeature.ObjectAssign, expression, wrapInReadonlyTable(args));
         case "defineProperty":
             return transformLuaLibFunction(context, LuaLibFeature.ObjectDefineProperty, expression, ...args);
         case "entries":

@@ -46,10 +46,8 @@ exports[`Bitop [5.1] ("~a"): diagnostics 1`] = `"main.ts(1,25): error TSTL: Bitw
 
 exports[`Bitop [5.1] ("a&=b"): code 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.band(a, b)
-    return a
-end)()
+a = bit.band(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -65,10 +63,8 @@ exports[`Bitop [5.1] ("a&b"): diagnostics 1`] = `"main.ts(1,25): error TSTL: Bit
 
 exports[`Bitop [5.1] ("a<<=b"): code 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.lshift(a, b)
-    return a
-end)()
+a = bit.lshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -84,10 +80,8 @@ exports[`Bitop [5.1] ("a<<b"): diagnostics 1`] = `"main.ts(1,25): error TSTL: Bi
 
 exports[`Bitop [5.1] ("a>>=b"): code 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.arshift(a, b)
-    return a
-end)()
+a = bit.arshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -95,10 +89,8 @@ exports[`Bitop [5.1] ("a>>=b"): diagnostics 1`] = `"main.ts(1,25): error TSTL: B
 
 exports[`Bitop [5.1] ("a>>>=b"): code 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.rshift(a, b)
-    return a
-end)()
+a = bit.rshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -122,10 +114,8 @@ exports[`Bitop [5.1] ("a>>b"): diagnostics 1`] = `"main.ts(1,25): error TSTL: Bi
 
 exports[`Bitop [5.1] ("a^=b"): code 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.bxor(a, b)
-    return a
-end)()
+a = bit.bxor(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -141,10 +131,8 @@ exports[`Bitop [5.1] ("a^b"): diagnostics 1`] = `"main.ts(1,25): error TSTL: Bit
 
 exports[`Bitop [5.1] ("a|=b"): code 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.bor(a, b)
-    return a
-end)()
+a = bit.bor(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -166,10 +154,8 @@ return ____exports"
 
 exports[`Bitop [5.2] ("a&=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit32.band(a, b)
-    return a
-end)()
+a = bit32.band(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -181,10 +167,8 @@ return ____exports"
 
 exports[`Bitop [5.2] ("a<<=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit32.lshift(a, b)
-    return a
-end)()
+a = bit32.lshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -196,19 +180,15 @@ return ____exports"
 
 exports[`Bitop [5.2] ("a>>=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit32.arshift(a, b)
-    return a
-end)()
+a = bit32.arshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
 exports[`Bitop [5.2] ("a>>>=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit32.rshift(a, b)
-    return a
-end)()
+a = bit32.rshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -226,10 +206,8 @@ return ____exports"
 
 exports[`Bitop [5.2] ("a^=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit32.bxor(a, b)
-    return a
-end)()
+a = bit32.bxor(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -241,10 +219,8 @@ return ____exports"
 
 exports[`Bitop [5.2] ("a|=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit32.bor(a, b)
-    return a
-end)()
+a = bit32.bor(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -262,10 +238,8 @@ return ____exports"
 
 exports[`Bitop [5.3] ("a&=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a & b
-    return a
-end)()
+a = a & b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -277,10 +251,8 @@ return ____exports"
 
 exports[`Bitop [5.3] ("a<<=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a << b
-    return a
-end)()
+a = a << b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -292,10 +264,8 @@ return ____exports"
 
 exports[`Bitop [5.3] ("a>>>=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a >> b
-    return a
-end)()
+a = a >> b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -307,10 +277,8 @@ return ____exports"
 
 exports[`Bitop [5.3] ("a^=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a ~ b
-    return a
-end)()
+a = a ~ b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -322,10 +290,8 @@ return ____exports"
 
 exports[`Bitop [5.3] ("a|=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a | b
-    return a
-end)()
+a = a | b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -343,10 +309,8 @@ return ____exports"
 
 exports[`Bitop [5.4] ("a&=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a & b
-    return a
-end)()
+a = a & b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -358,10 +322,8 @@ return ____exports"
 
 exports[`Bitop [5.4] ("a<<=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a << b
-    return a
-end)()
+a = a << b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -373,10 +335,8 @@ return ____exports"
 
 exports[`Bitop [5.4] ("a>>>=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a >> b
-    return a
-end)()
+a = a >> b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -388,10 +348,8 @@ return ____exports"
 
 exports[`Bitop [5.4] ("a^=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a ~ b
-    return a
-end)()
+a = a ~ b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -403,10 +361,8 @@ return ____exports"
 
 exports[`Bitop [5.4] ("a|=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a | b
-    return a
-end)()
+a = a | b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -424,10 +380,8 @@ return ____exports"
 
 exports[`Bitop [JIT] ("a&=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.band(a, b)
-    return a
-end)()
+a = bit.band(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -439,10 +393,8 @@ return ____exports"
 
 exports[`Bitop [JIT] ("a<<=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.lshift(a, b)
-    return a
-end)()
+a = bit.lshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -454,19 +406,15 @@ return ____exports"
 
 exports[`Bitop [JIT] ("a>>=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.arshift(a, b)
-    return a
-end)()
+a = bit.arshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
 exports[`Bitop [JIT] ("a>>>=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.rshift(a, b)
-    return a
-end)()
+a = bit.rshift(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -484,10 +432,8 @@ return ____exports"
 
 exports[`Bitop [JIT] ("a^=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.bxor(a, b)
-    return a
-end)()
+a = bit.bxor(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -499,10 +445,8 @@ return ____exports"
 
 exports[`Bitop [JIT] ("a|=b") 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = bit.bor(a, b)
-    return a
-end)()
+a = bit.bor(a, b)
+____exports.__result = a
 return ____exports"
 `;
 
@@ -618,10 +562,8 @@ return ____exports"
 
 exports[`Unsupported bitop 5.3 ("a>>=b"): code 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a >> b
-    return a
-end)()
+a = a >> b
+____exports.__result = a
 return ____exports"
 `;
 
@@ -637,10 +579,8 @@ exports[`Unsupported bitop 5.3 ("a>>b"): diagnostics 1`] = `"main.ts(1,25): erro
 
 exports[`Unsupported bitop 5.4 ("a>>=b"): code 1`] = `
 "local ____exports = {}
-____exports.__result = (function()
-    a = a >> b
-    return a
-end)()
+a = a >> b
+____exports.__result = a
 return ____exports"
 `;
 

@@ -1,12 +1,12 @@
 function __TS__ArrayReverse(this: void, arr: any[]): any[] {
-    let i = 0;
-    let j = arr.length - 1;
+    let i = 1;
+    let j = arr.length;
     while (i < j) {
-        const temp = arr[j];
-        arr[j] = arr[i];
-        arr[i] = temp;
-        i += 1;
-        j -= 1;
+        const temp = arr[j - 1];
+        arr[j - 1] = arr[i - 1];
+        arr[i - 1] = temp;
+        i++;
+        j--;
     }
     return arr;
 }

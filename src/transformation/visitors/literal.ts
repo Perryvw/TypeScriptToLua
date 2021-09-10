@@ -9,8 +9,9 @@ import { createSafeName, hasUnsafeIdentifierName, hasUnsafeSymbolName } from "..
 import { getSymbolIdOfSymbol, trackSymbolReference } from "../utils/symbols";
 import { isArrayType } from "../utils/typescript";
 import { transformFunctionLikeDeclaration } from "./function";
-import { flattenSpreadExpressions } from "./call";
+import { moveToPrecedingTemp, transformExpressionList } from "./expression-list";
 import { findMultiAssignmentViolations } from "./language-extensions/multi";
+import { wrapInReadonlyTable } from "../utils/lua-ast";
 
 // TODO: Move to object-literal.ts?
 export function transformPropertyName(context: TransformationContext, node: ts.PropertyName): lua.Expression {
@@ -69,12 +70,15 @@ const transformObjectLiteralExpression: FunctionVisitor<ts.ObjectLiteralExpressi
         return lua.createNilLiteral(expression);
     }
 
-    let properties: lua.TableFieldExpression[] = [];
-    const tableExpressions: lua.Expression[] = [];
+    const properties: lua.Expression[] = [];
+    const precedingStatements: lua.Statement[][] = [];
+    let lastPrecedingStatementsIndex = -1;
 
-    for (const element of expression.properties) {
+    for (let i = 0; i < expression.properties.length; ++i) {
+        const element = expression.properties[i];
         const name = element.name ? transformPropertyName(context, element.name) : undefined;
 
+        context.pushPrecedingStatements();
         if (ts.isPropertyAssignment(element)) {
             const expression = context.transformExpression(element.initializer);
             properties.push(lua.createTableFieldExpression(expression, name, element));
@@ -90,14 +94,6 @@ const transformObjectLiteralExpression: FunctionVisitor<ts.ObjectLiteralExpressi
             const expression = transformFunctionLikeDeclaration(element, context);
             properties.push(lua.createTableFieldExpression(expression, name, element));
         } else if (ts.isSpreadAssignment(element)) {
-            // Create a table for preceding properties to preserve property order
-            // { x: 0, ...{ y: 2 }, y: 1, z: 2 } --> __TS__ObjectAssign({x = 0}, {y = 2}, {y = 1, z = 2})
-            if (properties.length > 0) {
-                const tableExpression = lua.createTableExpression(properties, expression);
-                tableExpressions.push(tableExpression);
-                properties = [];
-            }
-
             const type = context.checker.getTypeAtLocation(element.expression);
             let tableExpression: lua.Expression;
             if (isArrayType(context, type)) {
@@ -111,19 +107,67 @@ const transformObjectLiteralExpression: FunctionVisitor<ts.ObjectLiteralExpressi
                 tableExpression = context.transformExpression(element.expression);
             }
 
-            tableExpressions.push(tableExpression);
+            properties.push(tableExpression);
         } else if (ts.isAccessor(element)) {
             context.diagnostics.push(unsupportedAccessorInObjectLiteral(element));
         } else {
             assertNever(element);
         }
+        const propertyPrecedingStatements = context.popPrecedingStatements();
+        precedingStatements.push(propertyPrecedingStatements);
+        if (propertyPrecedingStatements.length > 0) {
+            lastPrecedingStatementsIndex = i;
+        }
+    }
+
+    // Expressions referenced before others that produced preceding statements need to be cached in temps
+    if (lastPrecedingStatementsIndex >= 0) {
+        for (let i = 0; i < properties.length; ++i) {
+            const property = properties[i];
+
+            // Bubble up preceding statements
+            const propertyPrecedingStatements = precedingStatements[i];
+            context.addPrecedingStatements(propertyPrecedingStatements);
+
+            // Ignore expressions after the last one the generated preceding statements
+            if (i >= lastPrecedingStatementsIndex) continue;
+
+            if (lua.isTableFieldExpression(property)) {
+                // Skip fields whose values are:
+                // - literal values that couldn't be affected by preceding statements
+                // - temp identifiers which are results from preceding statements
+                if (
+                    !lua.isLiteral(property.value) &&
+                    !(propertyPrecedingStatements.length > 0 && lua.isIdentifier(property.value))
+                ) {
+                    property.value = moveToPrecedingTemp(context, property.value);
+                }
+            } else {
+                properties[i] = moveToPrecedingTemp(context, property);
+            }
+        }
+    }
+
+    // Sort into field expressions and tables to pass into __TS__ObjectAssign
+    let fields: lua.TableFieldExpression[] = [];
+    const tableExpressions: lua.Expression[] = [];
+    for (const property of properties) {
+        if (lua.isTableFieldExpression(property)) {
+            fields.push(property);
+        } else {
+            if (fields.length > 0) {
+                tableExpressions.push(lua.createTableExpression(fields));
+            }
+            tableExpressions.push(property);
+            fields = [];
+        }
     }
 
     if (tableExpressions.length === 0) {
-        return lua.createTableExpression(properties, expression);
+        return lua.createTableExpression(fields, expression);
     } else {
-        if (properties.length > 0) {
-            const tableExpression = lua.createTableExpression(properties, expression);
+        if (fields.length > 0) {
+            const tableExpression = lua.createTableExpression(fields, expression);
             tableExpressions.push(tableExpression);
         }
 
@@ -131,7 +175,12 @@ const transformObjectLiteralExpression: FunctionVisitor<ts.ObjectLiteralExpressi
             tableExpressions.unshift(lua.createTableExpression(undefined, expression));
         }
 
-        return transformLuaLibFunction(context, LuaLibFeature.ObjectAssign, expression, ...tableExpressions);
+        return transformLuaLibFunction(
+            context,
+            LuaLibFeature.ObjectAssign,
+            expression,
+            wrapInReadonlyTable(tableExpressions)
+        );
     }
 };
 
@@ -139,7 +188,7 @@ const transformArrayLiteralExpression: FunctionVisitor<ts.ArrayLiteralExpression
     const filteredElements = expression.elements.map(e =>
         ts.isOmittedExpression(e) ? ts.factory.createIdentifier("undefined") : e
     );
-    const values = flattenSpreadExpressions(context, filteredElements).map(e => lua.createTableFieldExpression(e));
+    const values = transformExpressionList(context, filteredElements).map(e => lua.createTableFieldExpression(e));
 
     return lua.createTableExpression(values, expression);
 };

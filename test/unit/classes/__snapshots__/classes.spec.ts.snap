@@ -2,9 +2,9 @@
 
 exports[`missing declaration name: code 1`] = `
 "require(\\"lualib_bundle\\");
-____ = __TS__Class()
-____.name = \\"\\"
-function ____.prototype.____constructor(self)
+____class_0 = __TS__Class()
+____class_0.name = \\"\\"
+function ____class_0.prototype.____constructor(self)
 end"
 `;
 

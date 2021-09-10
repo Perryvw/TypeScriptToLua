@@ -1,34 +1,39 @@
 // https://www.ecma-international.org/ecma-262/9.0/index.html#sec-array.prototype.slice
-function __TS__ArraySlice<T>(this: void, list: T[], first: number, last: number): T[] {
+function __TS__ArraySlice<T>(this: void, list: T[], first?: number, last?: number): T[] {
     const len = list.length;
 
-    const relativeStart = first || 0;
-
-    let k: number;
-    if (relativeStart < 0) {
-        k = Math.max(len + relativeStart, 0);
+    first = first ?? 0;
+    if (first < 0) {
+        first = len + first;
+        if (first < 0) {
+            first = 0;
+        }
     } else {
-        k = Math.min(relativeStart, len);
+        if (first > len) {
+            first = len;
+        }
     }
 
-    let relativeEnd = last;
-    if (last === undefined) {
-        relativeEnd = len;
-    }
-
-    let final: number;
-    if (relativeEnd < 0) {
-        final = Math.max(len + relativeEnd, 0);
+    last = last ?? len;
+    if (last < 0) {
+        last = len + last;
+        if (last < 0) {
+            last = 0;
+        }
     } else {
-        final = Math.min(relativeEnd, len);
+        if (last > len) {
+            last = len;
+        }
     }
 
     const out = [];
 
-    let n = 0;
-    while (k < final) {
-        out[n] = list[k];
-        k++;
+    first++;
+    last++;
+    let n = 1;
+    while (first < last) {
+        out[n - 1] = list[first - 1];
+        first++;
         n++;
     }
     return out;

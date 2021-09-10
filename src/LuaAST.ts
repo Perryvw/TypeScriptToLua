@@ -86,6 +86,14 @@ export enum SyntaxKind {
     BitwiseNotOperator, // Unary
 }
 
+export enum NodeFlags {
+    None = 0,
+    Inline = 1 << 0, // Keep function body on same line
+    Declaration = 1 << 1, // Prefer declaration syntax `function foo()` over assignment syntax `foo = function()`
+    PossiblyNotUsed = 1 << 2, // for an expression, if in an ExpressionStatement, statement is not emitted
+    IsUnpackCall = 1 << 3,
+}
+
 // TODO maybe name this PrefixUnary? not sure it makes sense to do so, because all unary ops in Lua are prefix
 export type UnaryBitwiseOperator = SyntaxKind.BitwiseNotOperator;
 
@@ -132,23 +140,34 @@ export interface TextRange {
 
 export interface Node extends TextRange {
     kind: SyntaxKind;
+    flags: NodeFlags;
 }
 
-export function createNode(kind: SyntaxKind, tsOriginal?: ts.Node): Node {
+export function createNode(kind: SyntaxKind, tsOriginal?: ts.Node, flags: NodeFlags = NodeFlags.None): Node {
     if (tsOriginal === undefined) {
-        return { kind };
+        return { kind, flags };
     }
 
     const sourcePosition = getSourcePosition(tsOriginal);
     if (sourcePosition) {
-        return { kind, line: sourcePosition.line, column: sourcePosition.column };
+        return { kind, flags, line: sourcePosition.line, column: sourcePosition.column };
     } else {
-        return { kind };
+        return { kind, flags };
     }
 }
 
 export function cloneNode<T extends Node>(node: T): T {
     return { ...node };
+}
+
+export function setNodeFlags<T extends Node>(node: T, flags: NodeFlags): T {
+    node.flags = flags;
+    return node;
+}
+
+export function addNodeFlags<T extends Node>(node: T, flags: NodeFlags): T {
+    node.flags |= flags;
+    return node;
 }
 
 export function setNodePosition<T extends Node>(node: T, position: TextRange): T {
@@ -566,10 +585,16 @@ export function createStringLiteral(value: string, tsOriginal?: ts.Node): String
     return expression;
 }
 
-export enum FunctionExpressionFlags {
-    None = 1 << 0,
-    Inline = 1 << 1, // Keep function body on same line
-    Declaration = 1 << 2, // Prefer declaration syntax `function foo()` over assignment syntax `foo = function()`
+export function isLiteral(
+    node: Node
+): node is NilLiteral | DotsLiteral | BooleanLiteral | NumericLiteral | StringLiteral {
+    return (
+        isNilLiteral(node) ||
+        isDotsLiteral(node) ||
+        isBooleanLiteral(node) ||
+        isNumericLiteral(node) ||
+        isStringLiteral(node)
+    );
 }
 
 export interface FunctionExpression extends Expression {
@@ -577,7 +602,6 @@ export interface FunctionExpression extends Expression {
     params?: Identifier[];
     dots?: DotsLiteral;
     body: Block;
-    flags: FunctionExpressionFlags;
 }
 
 export function isFunctionExpression(node: Node): node is FunctionExpression {
@@ -588,14 +612,13 @@ export function createFunctionExpression(
     body: Block,
     params?: Identifier[],
     dots?: DotsLiteral,
-    flags = FunctionExpressionFlags.None,
+    flags = NodeFlags.None,
     tsOriginal?: ts.Node
 ): FunctionExpression {
-    const expression = createNode(SyntaxKind.FunctionExpression, tsOriginal) as FunctionExpression;
+    const expression = createNode(SyntaxKind.FunctionExpression, tsOriginal, flags) as FunctionExpression;
     expression.body = body;
     expression.params = params;
     expression.dots = dots;
-    expression.flags = flags;
     return expression;
 }
 
@@ -807,6 +830,6 @@ export function isInlineFunctionExpression(expression: FunctionExpression): expr
         expression.body.statements?.length === 1 &&
         isReturnStatement(expression.body.statements[0]) &&
         expression.body.statements[0].expressions !== undefined &&
-        (expression.flags & FunctionExpressionFlags.Inline) !== 0
+        (expression.flags & NodeFlags.Inline) !== 0
     );
 }

@@ -8,6 +8,7 @@ import { addToNumericExpression } from "../utils/lua-ast";
 import { LuaLibFeature, transformLuaLibFunction } from "../utils/lualib";
 import { isArrayType, isNumberType, isStringType } from "../utils/typescript";
 import { tryGetConstEnumValue } from "./enum";
+import { transformOrderedExpressions } from "./expression-list";
 import { isMultiReturnCall, returnsMultiType } from "./language-extensions/multi";
 
 export function transformElementAccessArgument(
@@ -25,22 +26,35 @@ export function transformElementAccessArgument(
     return index;
 }
 
+export function getElementAccessArgument(
+    context: TransformationContext,
+    node: ts.ElementAccessExpression,
+    index: lua.Expression
+): lua.Expression {
+    const type = context.checker.getTypeAtLocation(node.expression);
+    const argumentType = context.checker.getTypeAtLocation(node.argumentExpression);
+    if (isArrayType(context, type) && isNumberType(context, argumentType)) {
+        return addToNumericExpression(index, 1);
+    }
+
+    return index;
+}
+
 export const transformElementAccessExpression: FunctionVisitor<ts.ElementAccessExpression> = (node, context) => {
     const constEnumValue = tryGetConstEnumValue(context, node);
     if (constEnumValue) {
         return constEnumValue;
     }
 
-    const table = context.transformExpression(node.expression);
+    let [table, accessExpression] = transformOrderedExpressions(context, [node.expression, node.argumentExpression]);
 
     const type = context.checker.getTypeAtLocation(node.expression);
     const argumentType = context.checker.getTypeAtLocation(node.argumentExpression);
     if (isStringType(context, type) && isNumberType(context, argumentType)) {
-        const index = context.transformExpression(node.argumentExpression);
-        return transformLuaLibFunction(context, LuaLibFeature.StringAccess, node, table, index);
+        return transformLuaLibFunction(context, LuaLibFeature.StringAccess, node, table, accessExpression);
     }
 
-    const accessExpression = transformElementAccessArgument(context, node);
+    accessExpression = getElementAccessArgument(context, node, accessExpression);
 
     if (isMultiReturnCall(context, node.expression)) {
         const accessType = context.checker.getTypeAtLocation(node.argumentExpression);

@@ -2,16 +2,14 @@
 function __TS__ArrayFind<T>(
     this: void,
     arr: T[],
-    predicate: (value: T, index: number, obj: T[]) => unknown
+    predicate: (value: T, index: number, obj: T[]) => unknown,
+    thisArg?: any
 ): T | undefined {
-    const len = arr.length;
-    let k = 0;
-    while (k < len) {
-        const elem = arr[k];
-        if (predicate(elem, k, arr)) {
+    for (const i of $range(1, arr.length)) {
+        const elem = arr[i - 1];
+        if (predicate.call(thisArg, elem, i - 1, arr)) {
             return elem;
         }
-        k += 1;
     }
 
     return undefined;

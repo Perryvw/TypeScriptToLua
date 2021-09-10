@@ -1,8 +1,8 @@
 import * as path from "path";
 import * as tstl from "../../src";
+import { BuildMode, transpileProject } from "../../src";
 import * as util from "../util";
 import * as ts from "typescript";
-import { BuildMode, transpileProject } from "../../src";
 
 describe("basic module resolution", () => {
     const projectPath = path.resolve(__dirname, "module-resolution", "project-with-node-modules");
@@ -446,8 +446,8 @@ test("includes lualib_bundle when external lua requests it", () => {
                 require("lualib_bundle")
 
                 local result = {}
-                __TS__ArrayPush(result, "foo")
-                __TS__ArrayPush(result, "bar")
+                __TS__ArrayPush(result, { "foo" })
+                __TS__ArrayPush(result, { "bar" })
 
                 return { foo = result }
             `

@@ -1,15 +1,14 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`switch empty fallthrough to default (0) 1`] = `
-"require(\\"lualib_bundle\\");
-local ____exports = {}
+"local ____exports = {}
 function ____exports.__main(self)
     local out = {}
     repeat
         local ____switch3 = 0
         local ____cond3 = ____switch3 == 1
         do
-            __TS__ArrayPush(out, \\"default\\")
+            out[#out + 1] = \\"default\\"
         end
     until true
     return out
@@ -18,15 +17,14 @@ return ____exports"
 `;
 
 exports[`switch empty fallthrough to default (1) 1`] = `
-"require(\\"lualib_bundle\\");
-local ____exports = {}
+"local ____exports = {}
 function ____exports.__main(self)
     local out = {}
     repeat
         local ____switch3 = 1
         local ____cond3 = ____switch3 == 1
         do
-            __TS__ArrayPush(out, \\"default\\")
+            out[#out + 1] = \\"default\\"
         end
     until true
     return out
@@ -35,8 +33,7 @@ return ____exports"
 `;
 
 exports[`switch produces optimal output 1`] = `
-"require(\\"lualib_bundle\\");
-local ____exports = {}
+"local ____exports = {}
 function ____exports.__main(self)
     local x = 0
     local out = {}
@@ -44,13 +41,13 @@ function ____exports.__main(self)
         local ____switch3 = 0
         local ____cond3 = ((____switch3 == 0) or (____switch3 == 1)) or (____switch3 == 2)
         if ____cond3 then
-            __TS__ArrayPush(out, \\"0,1,2\\")
+            out[#out + 1] = \\"0,1,2\\"
             break
         end
         ____cond3 = ____cond3 or (____switch3 == 3)
         if ____cond3 then
             do
-                __TS__ArrayPush(out, \\"3\\")
+                out[#out + 1] = \\"3\\"
                 break
             end
         end
@@ -60,20 +57,14 @@ function ____exports.__main(self)
         end
         do
             x = x + 1
-            __TS__ArrayPush(
-                out,
-                \\"default = \\" .. tostring(x)
-            )
+            out[#out + 1] = \\"default = \\" .. tostring(x)
             do
-                __TS__ArrayPush(out, \\"3\\")
+                out[#out + 1] = \\"3\\"
                 break
             end
         end
     until true
-    __TS__ArrayPush(
-        out,
-        tostring(x)
-    )
+    out[#out + 1] = tostring(x)
     return out
 end
 return ____exports"

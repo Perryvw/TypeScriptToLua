@@ -8,8 +8,8 @@ function __TS__ArraySetLength<T>(this: void, arr: T[], length: number): number {
         // non-integer
         throw `invalid array length: ${length}`;
     }
-    for (let i = arr.length - 1; i >= length; --i) {
-        arr[i] = undefined;
+    for (const i of $range(length + 1, arr.length)) {
+        arr[i - 1] = undefined;
     }
     return length;
 }

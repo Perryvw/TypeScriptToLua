@@ -6,7 +6,7 @@ import { unsupportedForTarget, unsupportedProperty, unsupportedSelfFunctionConve
 import { ContextType, getFunctionContextType } from "../utils/function-context";
 import { createUnpackCall } from "../utils/lua-ast";
 import { LuaLibFeature, transformLuaLibFunction } from "../utils/lualib";
-import { PropertyCallExpression, transformArguments } from "../visitors/call";
+import { PropertyCallExpression, transformCallAndArguments } from "../visitors/call";
 
 export function transformFunctionPrototypeCall(
     context: TransformationContext,
@@ -19,8 +19,7 @@ export function transformFunctionPrototypeCall(
     }
 
     const signature = context.checker.getResolvedSignature(node);
-    const params = transformArguments(context, node.arguments, signature);
-    const caller = context.transformExpression(expression.expression);
+    const [caller, params] = transformCallAndArguments(context, expression.expression, node.arguments, signature);
     const expressionName = expression.name.text;
     switch (expressionName) {
         case "apply":

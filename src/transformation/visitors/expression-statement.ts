@@ -32,7 +32,9 @@ export const transformExpressionStatement: FunctionVisitor<ts.ExpressionStatemen
     }
 
     const result = context.transformExpression(expression);
-    return lua.isCallExpression(result) || lua.isMethodCallExpression(result)
+    return result.flags & lua.NodeFlags.PossiblyNotUsed
+        ? undefined
+        : lua.isCallExpression(result) || lua.isMethodCallExpression(result)
         ? lua.createExpressionStatement(result)
         : // Assign expression statements to dummy to make sure they're legal Lua
           lua.createVariableDeclarationStatement(lua.createAnonymousIdentifier(), result);

@@ -12,7 +12,7 @@ function __TS__ArrayReduceRight<TElement, TAccumulator>(
 
     // Check if initial value is present in function call
     if (select("#", ...initial) !== 0) {
-        [accumulator] = select(1, ...initial);
+        [accumulator] = [...initial];
     } else if (len > 0) {
         accumulator = arr[k] as unknown as TAccumulator;
         k -= 1;
@@ -20,8 +20,8 @@ function __TS__ArrayReduceRight<TElement, TAccumulator>(
         throw "Reduce of empty array with no initial value";
     }
 
-    for (const i of $range(k, 0, -1)) {
-        accumulator = callbackFn(accumulator, arr[i], i, arr);
+    for (const i of $range(k + 1, 1, -1)) {
+        accumulator = callbackFn(accumulator, arr[i - 1], i - 1, arr);
     }
 
     return accumulator;

@@ -36,28 +36,31 @@ export function isArrayLength(
 export function transformDestructuringAssignment(
     context: TransformationContext,
     node: ts.DestructuringAssignment,
-    root: lua.Expression
+    root: lua.Expression,
+    rootHasPrecedingStatements: boolean
 ): lua.Statement[] {
-    return transformAssignmentPattern(context, node.left, root);
+    return transformAssignmentPattern(context, node.left, root, rootHasPrecedingStatements);
 }
 
 export function transformAssignmentPattern(
     context: TransformationContext,
     node: ts.AssignmentPattern,
-    root: lua.Expression
+    root: lua.Expression,
+    rootHasPrecedingStatements: boolean
 ): lua.Statement[] {
     switch (node.kind) {
         case ts.SyntaxKind.ObjectLiteralExpression:
-            return transformObjectLiteralAssignmentPattern(context, node, root);
+            return transformObjectLiteralAssignmentPattern(context, node, root, rootHasPrecedingStatements);
         case ts.SyntaxKind.ArrayLiteralExpression:
-            return transformArrayLiteralAssignmentPattern(context, node, root);
+            return transformArrayLiteralAssignmentPattern(context, node, root, rootHasPrecedingStatements);
     }
 }
 
 function transformArrayLiteralAssignmentPattern(
     context: TransformationContext,
     node: ts.ArrayLiteralExpression,
-    root: lua.Expression
+    root: lua.Expression,
+    rootHasPrecedingStatements: boolean
 ): lua.Statement[] {
     return node.elements.flatMap((element, index) => {
         const indexedRoot = lua.createTableIndexExpression(root, lua.createNumericLiteral(index + 1), element);
@@ -67,16 +70,18 @@ function transformArrayLiteralAssignmentPattern(
                 return transformObjectLiteralAssignmentPattern(
                     context,
                     element as ts.ObjectLiteralExpression,
-                    indexedRoot
+                    indexedRoot,
+                    rootHasPrecedingStatements
                 );
             case ts.SyntaxKind.ArrayLiteralExpression:
                 return transformArrayLiteralAssignmentPattern(
                     context,
                     element as ts.ArrayLiteralExpression,
-                    indexedRoot
+                    indexedRoot,
+                    rootHasPrecedingStatements
                 );
             case ts.SyntaxKind.BinaryExpression:
-                const assignedVariable = lua.createIdentifier("____bindingAssignmentValue");
+                const assignedVariable = context.createTempForLuaExpression(indexedRoot);
 
                 const assignedVariableDeclaration = lua.createVariableDeclarationStatement(
                     assignedVariable,
@@ -89,11 +94,16 @@ function transformArrayLiteralAssignmentPattern(
                     lua.SyntaxKind.EqualityOperator
                 );
 
+                context.pushPrecedingStatements();
+
                 const defaultAssignmentStatements = transformAssignment(
                     context,
                     (element as ts.BinaryExpression).left,
                     context.transformExpression((element as ts.BinaryExpression).right)
                 );
+
+                // Keep preceding statements inside if block
+                defaultAssignmentStatements.unshift(...context.popPrecedingStatements());
 
                 const elseAssignmentStatements = transformAssignment(
                     context,
@@ -111,7 +121,9 @@ function transformArrayLiteralAssignmentPattern(
             case ts.SyntaxKind.Identifier:
             case ts.SyntaxKind.PropertyAccessExpression:
             case ts.SyntaxKind.ElementAccessExpression:
-                return transformAssignment(context, element, indexedRoot);
+                context.pushPrecedingStatements();
+                const statements = transformAssignment(context, element, indexedRoot, rootHasPrecedingStatements);
+                return [...context.popPrecedingStatements(), ...statements]; // Keep preceding statements in order
             case ts.SyntaxKind.SpreadElement:
                 if (index !== node.elements.length - 1) {
                     // TypeScript error
@@ -126,7 +138,14 @@ function transformArrayLiteralAssignmentPattern(
                     lua.createNumericLiteral(index)
                 );
 
-                return transformAssignment(context, (element as ts.SpreadElement).expression, restElements);
+                context.pushPrecedingStatements();
+                const spreadStatements = transformAssignment(
+                    context,
+                    (element as ts.SpreadElement).expression,
+                    restElements,
+                    rootHasPrecedingStatements
+                );
+                return [...context.popPrecedingStatements(), ...spreadStatements]; // Keep preceding statements in order
             case ts.SyntaxKind.OmittedExpression:
                 return [];
             default:
@@ -139,7 +158,8 @@ function transformArrayLiteralAssignmentPattern(
 function transformObjectLiteralAssignmentPattern(
     context: TransformationContext,
     node: ts.ObjectLiteralExpression,
-    root: lua.Expression
+    root: lua.Expression,
+    rootHasPrecedingStatements: boolean
 ): lua.Statement[] {
     const result: lua.Statement[] = [];
 
@@ -149,7 +169,7 @@ function transformObjectLiteralAssignmentPattern(
                 result.push(...transformShorthandPropertyAssignment(context, property, root));
                 break;
             case ts.SyntaxKind.PropertyAssignment:
-                result.push(...transformPropertyAssignment(context, property, root));
+                result.push(...transformPropertyAssignment(context, property, root, rootHasPrecedingStatements));
                 break;
             case ts.SyntaxKind.SpreadAssignment:
                 result.push(...transformSpreadAssignment(context, property, root, node.properties));
@@ -207,7 +227,8 @@ function transformShorthandPropertyAssignment(
 function transformPropertyAssignment(
     context: TransformationContext,
     node: ts.PropertyAssignment,
-    root: lua.Expression
+    root: lua.Expression,
+    rootHasPrecedingStatements: boolean
 ): lua.Statement[] {
     const result: lua.Statement[] = [];
 
@@ -216,11 +237,21 @@ function transformPropertyAssignment(
         const newRootAccess = lua.createTableIndexExpression(root, propertyAccessString);
 
         if (ts.isObjectLiteralExpression(node.initializer)) {
-            return transformObjectLiteralAssignmentPattern(context, node.initializer, newRootAccess);
+            return transformObjectLiteralAssignmentPattern(
+                context,
+                node.initializer,
+                newRootAccess,
+                rootHasPrecedingStatements
+            );
         }
 
         if (ts.isArrayLiteralExpression(node.initializer)) {
-            return transformArrayLiteralAssignmentPattern(context, node.initializer, newRootAccess);
+            return transformArrayLiteralAssignmentPattern(
+                context,
+                node.initializer,
+                newRootAccess,
+                rootHasPrecedingStatements
+            );
         }
     }
 
@@ -228,7 +259,12 @@ function transformPropertyAssignment(
     const variableToExtract = transformPropertyName(context, node.name);
     const extractingExpression = lua.createTableIndexExpression(root, variableToExtract);
 
-    const destructureAssignmentStatements = transformAssignment(context, leftExpression, extractingExpression);
+    const destructureAssignmentStatements = transformAssignment(
+        context,
+        leftExpression,
+        extractingExpression,
+        rootHasPrecedingStatements
+    );
 
     result.push(...destructureAssignmentStatements);
 

@@ -1,15 +1,21 @@
 function __TS__ArrayFlatMap<T, U>(
     this: void,
     array: T[],
-    callback: (value: T, index: number, array: T[]) => U | readonly U[]
+    callback: (value: T, index: number, array: T[]) => U | readonly U[],
+    thisArg?: any
 ): U[] {
-    let result: U[] = [];
-    for (let i = 0; i < array.length; i++) {
-        const value = callback(array[i], i, array);
-        if (type(value) === "table" && Array.isArray(value)) {
-            result = result.concat(value);
+    const result: U[] = [];
+    let len = 0;
+    for (const i of $range(1, array.length)) {
+        const value = callback.call(thisArg, array[i - 1], i - 1, array);
+        if (Array.isArray(value)) {
+            for (const j of $range(1, value.length)) {
+                len++;
+                result[len - 1] = value[j - 1];
+            }
         } else {
-            result[result.length] = value as U;
+            len++;
+            result[len - 1] = value as U;
         }
     }
 

@@ -5,9 +5,7 @@ function __TS__FunctionBind(
     ...boundArgs: any[]
 ): (...args: any[]) => any {
     return (...args: any[]) => {
-        for (let i = 0; i < boundArgs.length; ++i) {
-            table.insert(args, i + 1, boundArgs[i]);
-        }
+        __TS__ArrayUnshift(args, boundArgs);
         return fn(thisArg, ...args);
     };
 }

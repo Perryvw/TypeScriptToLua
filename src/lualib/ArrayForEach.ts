@@ -1,9 +1,10 @@
 function __TS__ArrayForEach<T>(
     this: void,
     arr: T[],
-    callbackFn: (value: T, index?: number, array?: any[]) => any
+    callbackFn: (value: T, index?: number, array?: any[]) => any,
+    thisArg?: any
 ): void {
-    for (let i = 0; i < arr.length; i++) {
-        callbackFn(arr[i], i, arr);
+    for (const i of $range(1, arr.length)) {
+        callbackFn.call(thisArg, arr[i - 1], i - 1, arr);
     }
 }

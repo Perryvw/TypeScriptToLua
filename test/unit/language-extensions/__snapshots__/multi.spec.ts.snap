@@ -180,10 +180,10 @@ local function multi(self, ...)
     return ...
 end
 local a
-local ____ = {
+local ____temp_0 = {
     ____(nil)
 }
-a = ____[1]
+a = ____temp_0[1]
 ____exports.a = a
 ____exports.a = a
 return ____exports"
@@ -198,10 +198,10 @@ local function multi(self, ...)
 end
 local a
 do
-    local ____ = {
+    local ____temp_0 = {
         ____(nil, 1, 2)
     }
-    a = ____[1]
+    a = ____temp_0[1]
     ____exports.a = a
     while false do
         local ____ = 1
@@ -237,14 +237,12 @@ local function multi(self, ...)
     return ...
 end
 local a
-if (function()
-    local ____ = {
-        ____(nil, 1)
-    }
-    a = ____[1]
-    ____exports.a = a
-    return ____
-end)() then
+local ____temp_0 = {
+    ____(nil, 1)
+}
+a = ____temp_0[1]
+____exports.a = a
+if ____temp_0 then
     a = a + 1
     ____exports.a = a
 end

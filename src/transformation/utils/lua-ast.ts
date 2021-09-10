@@ -62,26 +62,16 @@ export function getNumberLiteralValue(expression?: lua.Expression) {
     return undefined;
 }
 
-// Prefer use of transformToImmediatelyInvokedFunctionExpression to maintain correct scope. If you use this directly,
-// ensure you push/pop a function scope appropriately to avoid incorrect vararg optimization.
-export function createImmediatelyInvokedFunctionExpression(
-    statements: lua.Statement[],
-    result: lua.Expression | lua.Expression[],
-    tsOriginal?: ts.Node
-): lua.CallExpression {
-    const body = [...statements, lua.createReturnStatement(castArray(result))];
-    const flags = statements.length === 0 ? lua.FunctionExpressionFlags.Inline : lua.FunctionExpressionFlags.None;
-    const iife = lua.createFunctionExpression(lua.createBlock(body), undefined, undefined, flags);
-    return lua.createCallExpression(iife, [], tsOriginal);
-}
-
 export function createUnpackCall(
     context: TransformationContext,
     expression: lua.Expression,
     tsOriginal?: ts.Node
-): lua.Expression {
+): lua.CallExpression {
     if (context.luaTarget === LuaTarget.Universal) {
-        return transformLuaLibFunction(context, LuaLibFeature.Unpack, tsOriginal, expression);
+        return lua.setNodeFlags(
+            transformLuaLibFunction(context, LuaLibFeature.Unpack, tsOriginal, expression),
+            lua.NodeFlags.IsUnpackCall
+        );
     }
 
     const unpack =
@@ -89,12 +79,27 @@ export function createUnpackCall(
             ? lua.createIdentifier("unpack")
             : lua.createTableIndexExpression(lua.createIdentifier("table"), lua.createStringLiteral("unpack"));
 
-    return lua.createCallExpression(unpack, [expression], tsOriginal);
+    return lua.setNodeFlags(lua.createCallExpression(unpack, [expression], tsOriginal), lua.NodeFlags.IsUnpackCall);
+}
+
+export function isUnpackCall(node: lua.Node): node is lua.CallExpression {
+    return lua.isCallExpression(node) && (node.flags & lua.NodeFlags.IsUnpackCall) !== 0;
 }
 
 export function wrapInTable(...expressions: lua.Expression[]): lua.TableExpression {
     const fields = expressions.map(e => lua.createTableFieldExpression(e));
     return lua.createTableExpression(fields);
+}
+
+/**
+ * If params is only one unpack call, then returns the unpacked table instead.
+ * So the resulting expression should only be used when guaranteed readonly.
+ */
+export function wrapInReadonlyTable(args: lua.Expression[]): lua.Expression {
+    if (args.length === 1 && isUnpackCall(args[0])) {
+        return args[0].params[0];
+    }
+    return wrapInTable(...args);
 }
 
 export function wrapInToStringForConcat(expression: lua.Expression): lua.Expression {
@@ -175,9 +180,14 @@ export function createLocalOrExportedOrGlobalDeclaration(
         const isTopLevelVariable = scope.type === ScopeType.File;
 
         if (context.isModule || !isTopLevelVariable) {
+            let precededDeclaration = false;
             if (scope.type === ScopeType.Switch || (!isFunctionDeclaration && hasMultipleReferences(scope, lhs))) {
                 // Split declaration and assignment of identifiers that reference themselves in their declaration
                 declaration = lua.createVariableDeclarationStatement(lhs, undefined, tsOriginal);
+                if (scope.type !== ScopeType.Switch) {
+                    context.addPrecedingStatements([declaration], true);
+                    precededDeclaration = true;
+                }
                 if (rhs) {
                     assignment = lua.createAssignmentStatement(lhs, rhs, tsOriginal);
                 }
@@ -192,7 +202,7 @@ export function createLocalOrExportedOrGlobalDeclaration(
 
             scope.variableDeclarations.push(declaration);
 
-            if (scope.type === ScopeType.Switch) {
+            if (scope.type === ScopeType.Switch || precededDeclaration) {
                 declaration = undefined;
             }
         } else if (rhs) {

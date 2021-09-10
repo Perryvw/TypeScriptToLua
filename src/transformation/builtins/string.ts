@@ -2,9 +2,9 @@ import * as ts from "typescript";
 import * as lua from "../../LuaAST";
 import { TransformationContext } from "../context";
 import { unsupportedProperty } from "../utils/diagnostics";
-import { addToNumericExpression, createNaN, getNumberLiteralValue } from "../utils/lua-ast";
+import { addToNumericExpression, createNaN, getNumberLiteralValue, wrapInTable } from "../utils/lua-ast";
 import { LuaLibFeature, transformLuaLibFunction } from "../utils/lualib";
-import { PropertyCallExpression, transformArguments } from "../visitors/call";
+import { PropertyCallExpression, transformArguments, transformCallAndArguments } from "../visitors/call";
 
 function createStringCall(methodName: string, tsOriginal: ts.Node, ...params: lua.Expression[]): lua.CallExpression {
     const stringIdentifier = lua.createIdentifier("string");
@@ -21,8 +21,7 @@ export function transformStringPrototypeCall(
 ): lua.Expression | undefined {
     const expression = node.expression;
     const signature = context.checker.getResolvedSignature(node);
-    const params = transformArguments(context, node.arguments, signature);
-    const caller = context.transformExpression(expression.expression);
+    const [caller, params] = transformCallAndArguments(context, expression.expression, node.arguments, signature);
 
     const expressionName = expression.name.text;
     switch (expressionName) {
@@ -31,7 +30,11 @@ export function transformStringPrototypeCall(
         case "replaceAll":
             return transformLuaLibFunction(context, LuaLibFeature.StringReplaceAll, node, caller, ...params);
         case "concat":
-            return transformLuaLibFunction(context, LuaLibFeature.StringConcat, node, caller, ...params);
+            return lua.createCallExpression(
+                lua.createTableIndexExpression(lua.createIdentifier("table"), lua.createStringLiteral("concat")),
+                [wrapInTable(caller, ...params)],
+                node
+            );
 
         case "indexOf": {
             const stringExpression = createStringCall(

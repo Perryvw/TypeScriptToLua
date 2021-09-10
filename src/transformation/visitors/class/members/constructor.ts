@@ -90,7 +90,7 @@ export function transformConstructorDeclaration(
 
     return lua.createAssignmentStatement(
         createConstructorName(className),
-        lua.createFunctionExpression(block, params, dotsLiteral, lua.FunctionExpressionFlags.Declaration),
+        lua.createFunctionExpression(block, params, dotsLiteral, lua.NodeFlags.Declaration),
         constructorWasGenerated ? classDeclaration : statement
     );
 }

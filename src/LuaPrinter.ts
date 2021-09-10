@@ -392,10 +392,7 @@ export class LuaPrinter {
 
         chunks.push(this.indent());
 
-        if (
-            lua.isFunctionDefinition(statement) &&
-            (statement.right[0].flags & lua.FunctionExpressionFlags.Declaration) !== 0
-        ) {
+        if (lua.isFunctionDefinition(statement) && (statement.right[0].flags & lua.NodeFlags.Declaration) !== 0) {
             // Use `function foo()` instead of `foo = function()`
             const name = this.printExpression(statement.left[0]);
             if (isValidLuaFunctionDeclarationName(name.toString())) {

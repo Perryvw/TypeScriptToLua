@@ -1,8 +1,8 @@
 export default function arrayPush(): number[] {
-    const n = 1000000;
+    const n = 200000;
     const numberList: number[] = [];
     for (let i = 0; i < n; i++) {
-        numberList[numberList.length] = i * i;
+        numberList.push(i * i, i + 1);
     }
     return numberList;
 }

@@ -4,14 +4,14 @@ import * as util from "../../util";
 
 describe("luaLibImport", () => {
     test("inline", () => {
-        util.testExpression`[0].push(1)`
+        util.testExpression`[0].indexOf(1)`
             .setOptions({ luaLibImport: tstl.LuaLibImportKind.Inline })
             .tap(builder => expect(builder.getMainLuaCodeChunk()).not.toContain('require("lualib_bundle")'))
             .expectToMatchJsResult();
     });
 
     test("require", () => {
-        util.testExpression`[0].push(1)`
+        util.testExpression`[0].indexOf(1)`
             .setOptions({ luaLibImport: tstl.LuaLibImportKind.Require })
             .tap(builder => expect(builder.getMainLuaCodeChunk()).toContain('require("lualib_bundle")'))
             .expectToMatchJsResult();

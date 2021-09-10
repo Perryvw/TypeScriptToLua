@@ -1,20 +1,24 @@
 // https://www.ecma-international.org/ecma-262/9.0/index.html#sec-array.prototype.splice
-function __TS__ArraySplice<T>(this: void, list: T[], ...args: T[]): T[] {
-    const len = list.length;
+function __TS__ArraySplice<T>(this: void, arr: T[], ...args: any[]): T[] {
+    const len = arr.length;
 
     const actualArgumentCount = select("#", ...args);
-    const start = select(1, ...args)[0] as unknown as number;
-    const deleteCount = select(2, ...args)[0] as unknown as number;
-
-    let actualStart: number;
+    let start = args[0] as number;
+    const deleteCount = args[1] as number;
 
     if (start < 0) {
-        actualStart = Math.max(len + start, 0);
-    } else {
-        actualStart = Math.min(start, len);
+        start = len + start;
+        if (start < 0) {
+            start = 0;
+        }
+    } else if (start > len) {
+        start = len;
     }
 
-    const itemCount = Math.max(actualArgumentCount - 2, 0);
+    let itemCount = actualArgumentCount - 2;
+    if (itemCount < 0) {
+        itemCount = 0;
+    }
 
     let actualDeleteCount: number;
 
@@ -23,56 +27,62 @@ function __TS__ArraySplice<T>(this: void, list: T[], ...args: T[]): T[] {
         actualDeleteCount = 0;
     } else if (actualArgumentCount === 1) {
         // ECMA-spec line 6: if number of actual arguments is 1
-        actualDeleteCount = len - actualStart;
+        actualDeleteCount = len - start;
     } else {
-        actualDeleteCount = Math.min(Math.max(deleteCount || 0, 0), len - actualStart);
+        actualDeleteCount = deleteCount || 0;
+        if (actualDeleteCount < 0) {
+            actualDeleteCount = 0;
+        }
+        if (actualDeleteCount > len - start) {
+            actualDeleteCount = len - start;
+        }
     }
 
     const out: T[] = [];
 
-    for (let k = 0; k < actualDeleteCount; k++) {
-        const from = actualStart + k;
+    for (const k of $range(1, actualDeleteCount)) {
+        const from = start + k;
 
-        if (list[from]) {
-            out[k] = list[from];
+        if (arr[from - 1] !== undefined) {
+            out[k - 1] = arr[from - 1];
         }
     }
 
     if (itemCount < actualDeleteCount) {
-        for (let k = actualStart; k < len - actualDeleteCount; k++) {
+        for (const k of $range(start + 1, len - actualDeleteCount)) {
             const from = k + actualDeleteCount;
             const to = k + itemCount;
 
-            if (list[from]) {
-                list[to] = list[from];
+            if (arr[from - 1]) {
+                arr[to - 1] = arr[from - 1];
             } else {
-                list[to] = undefined;
+                arr[to - 1] = undefined;
             }
         }
-        for (let k = len; k > len - actualDeleteCount + itemCount; k--) {
-            list[k - 1] = undefined;
+        for (const k of $range(len - actualDeleteCount + itemCount + 1, len)) {
+            arr[k - 1] = undefined;
         }
     } else if (itemCount > actualDeleteCount) {
-        for (let k = len - actualDeleteCount; k > actualStart; k--) {
-            const from = k + actualDeleteCount - 1;
-            const to = k + itemCount - 1;
+        for (const k of $range(len - actualDeleteCount, start + 1, -1)) {
+            const from = k + actualDeleteCount;
+            const to = k + itemCount;
 
-            if (list[from]) {
-                list[to] = list[from];
+            if (arr[from - 1]) {
+                arr[to - 1] = arr[from - 1];
             } else {
-                list[to] = undefined;
+                arr[to - 1] = undefined;
             }
         }
     }
 
-    let j = actualStart;
+    let j = start + 1;
     for (const i of $range(3, actualArgumentCount)) {
-        list[j] = select(i, ...args)[0];
+        arr[j - 1] = args[i - 1];
         j++;
     }
 
-    for (let k = list.length - 1; k >= len - actualDeleteCount + itemCount; k--) {
-        list[k] = undefined;
+    for (const k of $range(arr.length, len - actualDeleteCount + itemCount + 1, -1)) {
+        arr[k - 1] = undefined;
     }
 
     return out;
