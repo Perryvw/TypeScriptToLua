@@ -147,3 +147,19 @@ test("hoisting", () => {
         }
     `.expectToMatchJsResult();
 });
+
+util.testEachVersion(
+    "generator yield inside try/catch",
+    () => util.testFunction`
+        function* generator() {
+            try {
+                yield 4;
+            } catch {
+                throw "something went wrong";
+            }
+        }
+        return generator().next();
+    `,
+    // Cannot execute LuaJIT with test runner
+    util.expectEachVersionExceptJit(builder => builder.expectToMatchJsResult())
+);

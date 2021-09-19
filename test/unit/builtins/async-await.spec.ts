@@ -369,3 +369,44 @@ test("async function can forward varargs", () => {
         .setTsHeader(promiseTestLib)
         .expectToEqual(["resolved", "A", "B", "C"]);
 });
+
+// https://github.com/TypeScriptToLua/TypeScriptToLua/issues/1105
+describe("try/catch in async function", () => {
+    util.testEachVersion(
+        "await inside try/catch returns inside async function",
+        () => util.testModule`
+            export let result = 0;
+            async function foo(): Promise<number> {
+                try {
+                    return await new Promise(resolve => resolve(4));
+                } catch {
+                    throw "an error occurred in the async function"
+                }
+            }
+            foo().then(value => {
+                result = value;
+            });
+        `,
+        // Cannot execute LuaJIT with test runner
+        util.expectEachVersionExceptJit(builder => builder.expectToEqual({ result: 4 }))
+    );
+
+    util.testEachVersion(
+        "await inside try/catch throws inside async function",
+        () => util.testModule`
+            export let reason = "";
+            async function foo(): Promise<number> {
+                try {
+                    return await new Promise((resolve, reject) => reject("test error"));
+                } catch {
+                    throw "an error occurred in the async function"
+                }
+            }
+            foo().catch(e => {
+                reason = e;
+            });
+        `,
+        // Cannot execute LuaJIT with test runner
+        util.expectEachVersionExceptJit(builder => builder.expectToEqual({ reason: "an error occurred in the async function" }))
+    );
+});
