@@ -163,25 +163,33 @@ test.each([
 });
 
 test.each([
-    { fileName: "/proj/foo.ts", config: {} },
     {
-        fileName: "/proj/src/foo.ts",
-        config: { outDir: "/proj/dst" },
+        fileName: "/proj/foo.ts",
+        config: {},
+        expectedSourceMapSourcePath: "foo.ts", // Project root inferred as common source directory
     },
     {
         fileName: "/proj/src/foo.ts",
-        config: { rootDir: "/proj/src", outDir: "/proj/dst" },
+        config: { outDir: "/proj/dst" },
+        expectedSourceMapSourcePath: "foo.ts", // Project root inferred as common source directory
+    },
+    {
+        fileName: "/proj/src/foo.ts",
+        config: { rootDir: "/proj", outDir: "/proj/dst" },
+        expectedSourceMapSourcePath: "src/foo.ts", // rootDir set
     },
     {
         fileName: "/proj/src/sub/foo.ts",
         config: { rootDir: "/proj/src", outDir: "/proj/dst" },
+        expectedSourceMapSourcePath: "sub/foo.ts", // rootDir set
     },
     {
         fileName: "/proj/src/sub/main.ts",
         config: { rootDir: "/proj/src", outDir: "/proj/dst", sourceRoot: "bin" },
-        fullSource: "bin/proj/src/sub/main.ts",
+        fullSource: "bin/sub/main.ts",
+        expectedSourceMapSourcePath: "sub/main.ts", // rootDir set
     },
-])("Source map has correct sources (%p)", async ({ fileName, config, fullSource }) => {
+])("Source map has correct sources (%p)", async ({ fileName, config, fullSource, expectedSourceMapSourcePath }) => {
     const file = util.testModule`
         const foo = "foo"
     `
@@ -191,11 +199,11 @@ test.each([
 
     const sourceMap = JSON.parse(file.luaSourceMap);
     expect(sourceMap.sources).toHaveLength(1);
-    expect(sourceMap.sources[0]).toBe(fileName);
+    expect(sourceMap.sources[0]).toBe(expectedSourceMapSourcePath);
 
     const consumer = await new SourceMapConsumer(file.luaSourceMap);
     expect(consumer.sources).toHaveLength(1);
-    expect(consumer.sources[0]).toBe(fullSource ?? fileName);
+    expect(consumer.sources[0]).toBe(fullSource ?? expectedSourceMapSourcePath);
 });
 
 test.each([

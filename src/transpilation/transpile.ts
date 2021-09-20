@@ -1,9 +1,10 @@
 import * as path from "path";
 import * as ts from "typescript";
+import { getProjectRoot } from "./transpiler";
 import { CompilerOptions, validateOptions } from "../CompilerOptions";
 import { createPrinter } from "../LuaPrinter";
 import { createVisitorMap, transformSourceFile } from "../transformation";
-import { isNonNull } from "../utils";
+import { isNonNull, normalizeSlashes } from "../utils";
 import { getPlugins, Plugin } from "./plugins";
 import { getTransformers } from "./transformers";
 import { EmitHost, ProcessedFile } from "./utils";
@@ -81,7 +82,8 @@ export function getProgramTranspileResult(
                 console.log(`Printing ${sourceFile.fileName}`);
             }
 
-            const printResult = printer(program, emitHost, sourceFile.fileName, file);
+            const relativeSourcePath = normalizeSlashes(path.relative(getProjectRoot(program), sourceFile.fileName));
+            const printResult = printer(program, emitHost, relativeSourcePath, file);
             transpiledFiles.push({
                 sourceFiles: [sourceFile],
                 fileName: path.normalize(sourceFile.fileName),
