@@ -27,32 +27,34 @@ function canBeFalsy(context: TransformationContext, type: ts.Type): boolean {
     }
 }
 
-function wrapInFunctionCall(expression: lua.Expression): lua.FunctionExpression {
-    const returnStatement = lua.createReturnStatement([expression]);
-
-    return lua.createFunctionExpression(
-        lua.createBlock([returnStatement]),
-        undefined,
-        undefined,
-        lua.FunctionExpressionFlags.Inline
-    );
-}
-
 function transformProtectedConditionalExpression(
     context: TransformationContext,
     expression: ts.ConditionalExpression
-): lua.CallExpression {
+): lua.Expression {
+    const tempVar = context.createTempForNode(expression.condition);
+
     const condition = context.transformExpression(expression.condition);
+
+    context.pushPrecedingStatements();
     const val1 = context.transformExpression(expression.whenTrue);
+    const trueStatements = context.popPrecedingStatements();
+    trueStatements.push(lua.createAssignmentStatement(lua.cloneIdentifier(tempVar), val1, expression.whenTrue));
+
+    context.pushPrecedingStatements();
     const val2 = context.transformExpression(expression.whenFalse);
+    const falseStatements = context.popPrecedingStatements();
+    falseStatements.push(lua.createAssignmentStatement(lua.cloneIdentifier(tempVar), val2, expression.whenFalse));
 
-    const val1Function = wrapInFunctionCall(val1);
-    const val2Function = wrapInFunctionCall(val2);
-
-    // (condition and (() => v1) or (() => v2))()
-    const conditionAnd = lua.createBinaryExpression(condition, val1Function, lua.SyntaxKind.AndOperator);
-    const orExpression = lua.createBinaryExpression(conditionAnd, val2Function, lua.SyntaxKind.OrOperator);
-    return lua.createCallExpression(orExpression, [], expression);
+    context.addPrecedingStatements([lua.createVariableDeclarationStatement(tempVar, undefined, expression.condition)]);
+    context.addPrecedingStatements([
+        lua.createIfStatement(
+            condition,
+            lua.createBlock(trueStatements, expression.whenTrue),
+            lua.createBlock(falseStatements, expression.whenFalse),
+            expression
+        ),
+    ]);
+    return lua.cloneIdentifier(tempVar);
 }
 
 export const transformConditionalExpression: FunctionVisitor<ts.ConditionalExpression> = (expression, context) => {
@@ -78,8 +80,15 @@ export function transformIfStatement(statement: ts.IfStatement, context: Transfo
 
     if (statement.elseStatement) {
         if (ts.isIfStatement(statement.elseStatement)) {
+            context.pushPrecedingStatements();
             const elseStatement = transformIfStatement(statement.elseStatement, context);
-            return lua.createIfStatement(condition, ifBlock, elseStatement);
+            const precedingStatements = context.popPrecedingStatements();
+            if (precedingStatements.length > 0) {
+                const elseBlock = lua.createBlock([...precedingStatements, elseStatement]);
+                return lua.createIfStatement(condition, ifBlock, elseBlock);
+            } else {
+                return lua.createIfStatement(condition, ifBlock, elseStatement);
+            }
         } else {
             pushScope(context, ScopeType.Conditional);
             const elseStatements = performHoisting(

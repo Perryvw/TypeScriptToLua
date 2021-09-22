@@ -3,7 +3,7 @@ import * as lua from "../../LuaAST";
 import { TransformationContext } from "../context";
 import { unsupportedProperty } from "../utils/diagnostics";
 import { LuaLibFeature, transformLuaLibFunction } from "../utils/lualib";
-import { PropertyCallExpression, transformArguments } from "../visitors/call";
+import { PropertyCallExpression, transformArguments, transformCallAndArguments } from "../visitors/call";
 import { isStringType, isNumberType } from "../utils/typescript";
 
 export function transformArrayConstructorCall(
@@ -29,8 +29,7 @@ export function transformArrayPrototypeCall(
 ): lua.CallExpression | undefined {
     const expression = node.expression;
     const signature = context.checker.getResolvedSignature(node);
-    const params = transformArguments(context, node.arguments, signature);
-    const caller = context.transformExpression(expression.expression);
+    const [caller, params] = transformCallAndArguments(context, expression.expression, node.arguments, signature);
 
     const expressionName = expression.name.text;
     switch (expressionName) {

@@ -4,8 +4,8 @@ exports[`Transformation (blockScopeVariables) 1`] = `
 "do
     local a = 1
     local b = 1
-    local ____ = {c = 1}
-    local c = ____.c
+    local ____temp_0 = {c = 1}
+    local c = ____temp_0.c
 end"
 `;
 

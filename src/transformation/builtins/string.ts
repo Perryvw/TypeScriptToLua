@@ -4,7 +4,7 @@ import { TransformationContext } from "../context";
 import { unsupportedProperty } from "../utils/diagnostics";
 import { addToNumericExpression, createNaN, getNumberLiteralValue } from "../utils/lua-ast";
 import { LuaLibFeature, transformLuaLibFunction } from "../utils/lualib";
-import { PropertyCallExpression, transformArguments } from "../visitors/call";
+import { PropertyCallExpression, transformArguments, transformCallAndArguments } from "../visitors/call";
 
 function createStringCall(methodName: string, tsOriginal: ts.Node, ...params: lua.Expression[]): lua.CallExpression {
     const stringIdentifier = lua.createIdentifier("string");
@@ -21,8 +21,7 @@ export function transformStringPrototypeCall(
 ): lua.Expression | undefined {
     const expression = node.expression;
     const signature = context.checker.getResolvedSignature(node);
-    const params = transformArguments(context, node.arguments, signature);
-    const caller = context.transformExpression(expression.expression);
+    const [caller, params] = transformCallAndArguments(context, expression.expression, node.arguments, signature);
 
     const expressionName = expression.name.text;
     switch (expressionName) {

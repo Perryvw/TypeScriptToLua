@@ -566,6 +566,18 @@ export function createStringLiteral(value: string, tsOriginal?: ts.Node): String
     return expression;
 }
 
+export function isLiteral(
+    node: Node
+): node is NilLiteral | DotsLiteral | BooleanLiteral | NumericLiteral | StringLiteral {
+    return (
+        isNilLiteral(node) ||
+        isDotsLiteral(node) ||
+        isBooleanLiteral(node) ||
+        isNumericLiteral(node) ||
+        isStringLiteral(node)
+    );
+}
+
 export enum FunctionExpressionFlags {
     None = 1 << 0,
     Inline = 1 << 1, // Keep function body on same line

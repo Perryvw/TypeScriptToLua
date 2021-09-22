@@ -92,3 +92,20 @@ export function getFunctionTypeForCall(context: TransformationContext, node: ts.
     }
     return context.checker.getTypeFromTypeNode(typeDeclaration.type);
 }
+
+export function isConstIdentifier(context: TransformationContext, node: ts.Node) {
+    let identifier = node;
+    if (ts.isComputedPropertyName(identifier)) {
+        identifier = identifier.expression;
+    }
+    if (!ts.isIdentifier(identifier)) {
+        return false;
+    }
+    const symbol = context.checker.getSymbolAtLocation(identifier);
+    if (!symbol || !symbol.declarations) {
+        return false;
+    }
+    return symbol.declarations.some(
+        d => ts.isVariableDeclarationList(d.parent) && (d.parent.flags & ts.NodeFlags.Const) !== 0
+    );
+}

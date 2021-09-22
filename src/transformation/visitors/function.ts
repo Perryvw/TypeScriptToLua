@@ -8,7 +8,6 @@ import { createDefaultExportStringLiteral, hasDefaultExportModifier } from "../u
 import { ContextType, getFunctionContextType } from "../utils/function-context";
 import {
     createExportsIdentifier,
-    createImmediatelyInvokedFunctionExpression,
     createLocalOrExportedOrGlobalDeclaration,
     createSelfIdentifier,
     wrapInTable,
@@ -53,8 +52,10 @@ function isRestParameterReferenced(identifier: lua.Identifier, scope: Scope): bo
 
 export function transformFunctionBodyContent(context: TransformationContext, body: ts.ConciseBody): lua.Statement[] {
     if (!ts.isBlock(body)) {
+        context.pushPrecedingStatements();
         const returnStatement = transformExpressionBodyToReturnStatement(context, body);
-        return [returnStatement];
+        const precedingStatements = context.popPrecedingStatements();
+        return [...precedingStatements, returnStatement];
     }
 
     const bodyStatements = performHoisting(context, context.transformStatements(body.statements));
@@ -242,17 +243,13 @@ export function transformFunctionLikeDeclaration(
                 nodes.some(n => context.checker.getSymbolAtLocation(n)?.valueDeclaration === symbol.valueDeclaration)
             );
 
-            // Only wrap if the name is actually referenced inside the function
+            // Only handle if the name is actually referenced inside the function
             if (isReferenced) {
                 const nameIdentifier = transformIdentifier(context, node.name);
-                // We cannot use transformToImmediatelyInvokedFunctionExpression() here because we need to transpile
-                // the function first to determine if it's self-referencing. Fortunately, this does not cause issues
-                // with var-arg optimization because the IIFE is just wrapping another function which will already push
-                // another scope.
-                return createImmediatelyInvokedFunctionExpression(
-                    [lua.createVariableDeclarationStatement(nameIdentifier, functionExpression)],
-                    lua.cloneIdentifier(nameIdentifier)
-                );
+                context.addPrecedingStatements([
+                    lua.createVariableDeclarationStatement(nameIdentifier, functionExpression),
+                ]);
+                return lua.cloneIdentifier(nameIdentifier);
             }
         }
     }

@@ -4,7 +4,7 @@ import { FunctionVisitor, TransformationContext } from "../../context";
 import { AnnotationKind, getTypeAnnotations } from "../../utils/annotations";
 import { annotationInvalidArgumentCount, annotationRemoved } from "../../utils/diagnostics";
 import { importLuaLibFeature, LuaLibFeature, transformLuaLibFunction } from "../../utils/lualib";
-import { transformArguments } from "../call";
+import { transformArguments, transformCallAndArguments } from "../call";
 import { isTableNewCall } from "../language-extensions/table";
 
 const builtinErrorTypeNames = new Set([
@@ -61,13 +61,14 @@ export const transformNewExpression: FunctionVisitor<ts.NewExpression> = (node, 
     }
 
     const signature = context.checker.getResolvedSignature(node);
-    const params = node.arguments
-        ? transformArguments(context, node.arguments, signature)
-        : [lua.createBooleanLiteral(true)];
+    const [name, params] = transformCallAndArguments(
+        context,
+        node.expression,
+        node.arguments ?? [ts.factory.createTrue()],
+        signature
+    );
 
     checkForLuaLibType(context, type);
-
-    const name = context.transformExpression(node.expression);
 
     const customConstructorAnnotation = annotations.get(AnnotationKind.CustomConstructor);
     if (customConstructorAnnotation) {

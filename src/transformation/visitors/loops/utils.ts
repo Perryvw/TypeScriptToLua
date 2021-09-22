@@ -64,10 +64,20 @@ export function transformForInitializer(
 
         block.statements.unshift(
             ...(isAssignmentPattern(initializer)
-                ? transformAssignmentPattern(context, initializer, valueVariable)
+                ? transformAssignmentPattern(context, initializer, valueVariable, false)
                 : transformAssignment(context, initializer, valueVariable))
         );
     }
 
     return valueVariable;
+}
+
+export function invertCondition(expression: lua.Expression) {
+    if (lua.isUnaryExpression(expression) && expression.operator === lua.SyntaxKind.NotOperator) {
+        return expression.operand;
+    } else {
+        const notExpression = lua.createUnaryExpression(expression, lua.SyntaxKind.NotOperator);
+        lua.setNodePosition(notExpression, lua.getOriginalPos(expression));
+        return notExpression;
+    }
 }

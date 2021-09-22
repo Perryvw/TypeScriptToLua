@@ -14,6 +14,7 @@ export enum ScopeType {
     Block = 1 << 5,
     Try = 1 << 6,
     Catch = 1 << 7,
+    ExpressionList = 1 << 8,
 }
 
 interface FunctionDefinitionInfo {
@@ -67,6 +68,17 @@ export function markSymbolAsReferencedInCurrentScopes(
     }
 }
 
+export function getReferenceCountInScope(scope: Scope, symbolId: lua.SymbolId) {
+    if (!scope.referencedSymbols) {
+        return 0;
+    }
+    const referencedSymbols = scope.referencedSymbols.get(symbolId);
+    if (!referencedSymbols) {
+        return 0;
+    }
+    return referencedSymbols.length;
+}
+
 export function peekScope(context: TransformationContext): Scope {
     const scopeStack = getScopeStack(context);
     const scope = scopeStack[scopeStack.length - 1];
@@ -96,6 +108,13 @@ export function popScope(context: TransformationContext): Scope {
     assert(scope);
 
     return scope;
+}
+
+export function addScopeVariableDeclaration(scope: Scope, declaration: lua.VariableDeclarationStatement) {
+    if (!scope.variableDeclarations) {
+        scope.variableDeclarations = [];
+    }
+    scope.variableDeclarations.push(declaration);
 }
 
 function isHoistableFunctionDeclaredInScope(symbol: ts.Symbol, scopeNode: ts.Node) {

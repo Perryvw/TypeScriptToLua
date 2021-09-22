@@ -63,7 +63,9 @@ export function transformBindingPattern(
         // The identifier of the new variable
         const variableName = transformIdentifier(context, element.name);
         // The field to extract
+        context.pushPrecedingStatements();
         const propertyName = transformPropertyName(context, element.propertyName ?? element.name);
+        result.push(...context.popPrecedingStatements()); // Keep property's preceding statements in order
 
         let expression: lua.Expression;
         if (element.dotDotDotToken) {
@@ -123,11 +125,15 @@ export function transformBindingPattern(
         result.push(...createLocalOrExportedOrGlobalDeclaration(context, variableName, expression));
         if (element.initializer) {
             const identifier = addExportToIdentifier(context, variableName);
+            context.pushPrecedingStatements();
+            const initializer = context.transformExpression(element.initializer);
+            const initializerPrecedingStatements = context.popPrecedingStatements();
             result.push(
                 lua.createIfStatement(
                     lua.createBinaryExpression(identifier, lua.createNilLiteral(), lua.SyntaxKind.EqualityOperator),
                     lua.createBlock([
-                        lua.createAssignmentStatement(identifier, context.transformExpression(element.initializer)),
+                        ...initializerPrecedingStatements,
+                        lua.createAssignmentStatement(identifier, initializer),
                     ])
                 )
             );
@@ -155,13 +161,15 @@ export function transformBindingVariableDeclaration(
             table = transformIdentifier(context, initializer);
         } else {
             // Contain the expression in a temporary variable
-            table = lua.createAnonymousIdentifier();
             if (initializer) {
+                table = context.createTempForNode(initializer);
                 let expression = context.transformExpression(initializer);
                 if (isMultiReturnCall(context, initializer)) {
                     expression = wrapInTable(expression);
                 }
                 statements.push(lua.createVariableDeclarationStatement(table, expression));
+            } else {
+                table = lua.createAnonymousIdentifier();
             }
         }
         statements.push(...transformBindingPattern(context, bindingPattern, table));

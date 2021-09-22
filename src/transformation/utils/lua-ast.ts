@@ -4,7 +4,7 @@ import * as lua from "../../LuaAST";
 import { assert, castArray } from "../../utils";
 import { TransformationContext } from "../context";
 import { createExportedIdentifier, getIdentifierExportScope } from "./export";
-import { peekScope, ScopeType, Scope } from "./scope";
+import { peekScope, ScopeType, Scope, addScopeVariableDeclaration } from "./scope";
 import { transformLuaLibFunction } from "./lualib";
 import { LuaLibFeature } from "../../LuaLib";
 
@@ -62,19 +62,6 @@ export function getNumberLiteralValue(expression?: lua.Expression) {
     return undefined;
 }
 
-// Prefer use of transformToImmediatelyInvokedFunctionExpression to maintain correct scope. If you use this directly,
-// ensure you push/pop a function scope appropriately to avoid incorrect vararg optimization.
-export function createImmediatelyInvokedFunctionExpression(
-    statements: lua.Statement[],
-    result: lua.Expression | lua.Expression[],
-    tsOriginal?: ts.Node
-): lua.CallExpression {
-    const body = [...statements, lua.createReturnStatement(castArray(result))];
-    const flags = statements.length === 0 ? lua.FunctionExpressionFlags.Inline : lua.FunctionExpressionFlags.None;
-    const iife = lua.createFunctionExpression(lua.createBlock(body), undefined, undefined, flags);
-    return lua.createCallExpression(iife, [], tsOriginal);
-}
-
 export function createUnpackCall(
     context: TransformationContext,
     expression: lua.Expression,
@@ -119,12 +106,7 @@ export function createHoistableVariableDeclarationStatement(
     if (identifier.symbolId !== undefined) {
         const scope = peekScope(context);
         assert(scope.type !== ScopeType.Switch);
-
-        if (!scope.variableDeclarations) {
-            scope.variableDeclarations = [];
-        }
-
-        scope.variableDeclarations.push(declaration);
+        addScopeVariableDeclaration(scope, declaration);
     }
 
     return declaration;
@@ -176,22 +158,25 @@ export function createLocalOrExportedOrGlobalDeclaration(
 
         if (context.isModule || !isTopLevelVariable) {
             if (!isFunctionDeclaration && hasMultipleReferences(scope, lhs)) {
-                // Split declaration and assignment of identifiers that reference themselves in their declaration
-                declaration = lua.createVariableDeclarationStatement(lhs, undefined, tsOriginal);
+                // Split declaration and assignment of identifiers that reference themselves in their declaration.
+                // Put declaration above preceding statements in case the identifier is referenced in those.
+                const precedingDeclaration = lua.createVariableDeclarationStatement(lhs, undefined, tsOriginal);
+                context.addPrecedingStatements([precedingDeclaration], true);
                 if (rhs) {
                     assignment = lua.createAssignmentStatement(lhs, rhs, tsOriginal);
                 }
+
+                if (!isFunctionDeclaration) {
+                    // Remember local variable declarations for hoisting later
+                    addScopeVariableDeclaration(scope, precedingDeclaration);
+                }
             } else {
                 declaration = lua.createVariableDeclarationStatement(lhs, rhs, tsOriginal);
-            }
 
-            if (!isFunctionDeclaration) {
-                // Remember local variable declarations for hoisting later
-                if (!scope.variableDeclarations) {
-                    scope.variableDeclarations = [];
+                if (!isFunctionDeclaration) {
+                    // Remember local variable declarations for hoisting later
+                    addScopeVariableDeclaration(scope, declaration);
                 }
-
-                scope.variableDeclarations.push(declaration);
             }
         } else if (rhs) {
             // global
