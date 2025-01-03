@@ -84,7 +84,8 @@ function tryTransformBuiltinGlobalMethodCall(
 ) {
     const ownerType = context.checker.getTypeAtLocation(calledMethod.expression);
     const ownerSymbol = tryGetStandardLibrarySymbolOfType(context, ownerType);
-    if (!ownerSymbol || ownerSymbol.parent) return;
+    if (!ownerSymbol || (ownerSymbol.parent && context.checker.getFullyQualifiedName(ownerSymbol.parent) !== "global"))
+        return;
 
     let result: lua.Expression | undefined;
     switch (ownerSymbol.name) {
