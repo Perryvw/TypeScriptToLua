@@ -249,6 +249,8 @@ export function transformAssignmentStatement(
 
             if (ts.isArrayLiteralExpression(expression.right)) {
                 right = transformExpressionList(context, expression.right.elements);
+            } else if (ts.isStringLiteral(expression.right)) {
+                right = Array.from(expression.right.text).map(c => lua.createStringLiteral(c));
             } else {
                 right = context.transformExpression(expression.right);
                 if (!isMultiReturnCall(context, expression.right) && isArrayType(context, rightType)) {

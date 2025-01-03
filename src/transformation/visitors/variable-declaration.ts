@@ -13,6 +13,7 @@ import { transformIdentifier } from "./identifier";
 import { isMultiReturnCall } from "./language-extensions/multi";
 import { transformPropertyName } from "./literal";
 import { moveToPrecedingTemp } from "./expression-list";
+import { isStringType } from "../utils/typescript";
 
 export function transformArrayBindingElement(
     context: TransformationContext,
@@ -40,7 +41,8 @@ export function transformBindingPattern(
     context: TransformationContext,
     pattern: ts.BindingPattern,
     table: lua.Expression,
-    propertyAccessStack: ts.PropertyName[] = []
+    propertyAccessStack: ts.PropertyName[] = [],
+    isStringBinding = false
 ): lua.Statement[] {
     const result: lua.Statement[] = [];
 
@@ -125,10 +127,21 @@ export function transformBindingPattern(
                 );
             }
         } else {
-            expression = lua.createTableIndexExpression(
-                tableExpression,
-                ts.isObjectBindingPattern(pattern) ? propertyName : lua.createNumericLiteral(index + 1)
-            );
+            if (isStringBinding) {
+                // don't add 1 to index stringaccess already takes care of that
+                expression = transformLuaLibFunction(
+                    context,
+                    LuaLibFeature.StringAccess,
+                    pattern,
+                    table,
+                    lua.createNumericLiteral(index)
+                );
+            } else {
+                expression = lua.createTableIndexExpression(
+                    tableExpression,
+                    ts.isObjectBindingPattern(pattern) ? propertyName : lua.createNumericLiteral(index + 1)
+                );
+            }
         }
 
         result.push(...createLocalOrExportedOrGlobalDeclaration(context, variableName, expression));
@@ -153,6 +166,58 @@ export function transformBindingPattern(
     return result;
 }
 
+function requiresComplexBindingVariableDeclaration(
+    context: TransformationContext,
+    bindingPattern: ts.BindingPattern,
+    initializer?: ts.Expression
+): boolean {
+    // For object, strings, nested or rest bindings fall back to transformBindingPattern
+    const isComplexBindingElement = (e: ts.ArrayBindingElement) =>
+        ts.isBindingElement(e) && (!ts.isIdentifier(e.name) || e.dotDotDotToken);
+
+    const hasStringInitializer = initializer && isStringType(context, context.checker.getTypeAtLocation(initializer));
+
+    return (
+        ts.isObjectBindingPattern(bindingPattern) ||
+        bindingPattern.elements.some(isComplexBindingElement) ||
+        Boolean(hasStringInitializer)
+    );
+}
+function transformComplexBindingVariableDeclaration(
+    context: TransformationContext,
+    bindingPattern: ts.BindingPattern,
+    initializer?: ts.Expression
+): lua.Statement[] {
+    const statements: lua.Statement[] = [];
+
+    let table: lua.Expression;
+    if (initializer) {
+        // Contain the expression in a temporary variable
+        let expression = context.transformExpression(initializer);
+        if (isMultiReturnCall(context, initializer)) {
+            expression = wrapInTable(expression);
+        }
+        const { precedingStatements: moveStatements, result: movedExpr } = transformInPrecedingStatementScope(
+            context,
+            () => moveToPrecedingTemp(context, expression, initializer)
+        );
+        statements.push(...moveStatements);
+        table = movedExpr;
+    } else {
+        table = lua.createAnonymousIdentifier();
+    }
+    statements.push(
+        ...transformBindingPattern(
+            context,
+            bindingPattern,
+            table,
+            [],
+            initializer && isStringType(context, context.checker.getTypeAtLocation(initializer))
+        )
+    );
+    return statements;
+}
+
 export function transformBindingVariableDeclaration(
     context: TransformationContext,
     bindingPattern: ts.BindingPattern,
@@ -160,29 +225,8 @@ export function transformBindingVariableDeclaration(
 ): lua.Statement[] {
     const statements: lua.Statement[] = [];
 
-    // For object, nested or rest bindings fall back to transformBindingPattern
-    const isComplexBindingElement = (e: ts.ArrayBindingElement) =>
-        ts.isBindingElement(e) && (!ts.isIdentifier(e.name) || e.dotDotDotToken);
-
-    if (ts.isObjectBindingPattern(bindingPattern) || bindingPattern.elements.some(isComplexBindingElement)) {
-        let table: lua.Expression;
-        if (initializer) {
-            // Contain the expression in a temporary variable
-            let expression = context.transformExpression(initializer);
-            if (isMultiReturnCall(context, initializer)) {
-                expression = wrapInTable(expression);
-            }
-            const { precedingStatements: moveStatements, result: movedExpr } = transformInPrecedingStatementScope(
-                context,
-                () => moveToPrecedingTemp(context, expression, initializer)
-            );
-            statements.push(...moveStatements);
-            table = movedExpr;
-        } else {
-            table = lua.createAnonymousIdentifier();
-        }
-        statements.push(...transformBindingPattern(context, bindingPattern, table));
-        return statements;
+    if (requiresComplexBindingVariableDeclaration(context, bindingPattern, initializer)) {
+        return transformComplexBindingVariableDeclaration(context, bindingPattern, initializer);
     }
 
     const vars =
@@ -206,6 +250,12 @@ export function transformBindingVariableDeclaration(
             const values =
                 initializer.elements.length > 0
                     ? initializer.elements.map(e => context.transformExpression(e))
+                    : lua.createNilLiteral();
+            statements.push(...createLocalOrExportedOrGlobalDeclaration(context, vars, values, initializer));
+        } else if (ts.isStringLiteral(initializer)) {
+            const values =
+                initializer.text.length > 0
+                    ? Array.from(initializer.text).map(c => lua.createStringLiteral(c))
                     : lua.createNilLiteral();
             statements.push(...createLocalOrExportedOrGlobalDeclaration(context, vars, values, initializer));
         } else {

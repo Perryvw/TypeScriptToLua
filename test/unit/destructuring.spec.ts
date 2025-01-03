@@ -237,3 +237,44 @@ test("no exception from semantically invalid TS", () => {
         .disableSemanticCheck()
         .expectToHaveDiagnostics([invalidMultiReturnAccess.code, cannotAssignToNodeOfKind.code]);
 });
+
+describe("string destructuring", () => {
+    test("string literal declaration", () => {
+        util.testFunction`
+            const [a, b, c] = "test";
+            return { a, b, c };
+        `.expectToMatchJsResult();
+    });
+
+    test("string literal assignment", () => {
+        util.testFunction`
+            let a = "";
+            let b = "";
+            let c = "";
+            [a, b, c] = "test";
+            return { a, b, c };
+        `
+            .debug()
+            .expectToMatchJsResult();
+    });
+
+    test("string assignment", () => {
+        util.testFunction`
+            const foo = "test";
+            const [a, b, c] = foo;
+            return { a, b, c };
+        `.expectToMatchJsResult();
+    });
+
+    // not wokring right now: send help pls
+    test("for loop init", () => {
+        util.testFunction`
+            const foo = "test";
+            for (const [a, b, c] of foo) {
+                return { a, b, c };
+            }
+        `
+            .debug()
+            .expectToMatchJsResult();
+    });
+});
