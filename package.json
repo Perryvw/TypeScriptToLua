@@ -33,7 +33,8 @@
         "fix:prettier": "prettier --write .",
         "check:language-extensions": "tsc --strict language-extensions/index.d.ts",
         "preversion": "npm run build && npm test",
-        "postversion": "git push && git push --tags"
+        "postversion": "npm run syncversions && git push && git push --tags",
+        "syncversions": "cd language-extensions && node -e \"require('child_process').exec(\\`npm version \\${require('../package.json').version} --no-git-tag-version\\`)\" && cd .."
     },
     "bin": {
         "tstl": "dist/tstl.js"
